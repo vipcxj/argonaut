@@ -4,8 +4,6 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/vipcxj/argonaut/internal/bind"
 
 	"github.com/spf13/cobra"
@@ -13,22 +11,15 @@ import (
 
 // bindCmd represents the bind command
 var bindCmd = &cobra.Command{
-	Use:   "bind",
-	Short: bind.ShortDesc,
-	Long: bind.LongDesc,
+	Use:                "bind",
+	Short:              bind.ShortDesc,
+	Long:               bind.LongDesc,
 	DisableFlagParsing: true,
-	RunE:                bind.Run,
+	Run:                bind.Run,
 }
 
 func init() {
 	rootCmd.AddCommand(bindCmd)
-
-	bindCmd.Flags().BoolP("interactive", "i", false, "Enable interactive mode for user prompts")
-	bindCmd.Flags().StringSliceP("arg", "a", []string{}, "The argument name")
-	bindCmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
-		fmt.Println("aaa")
-		return nil
-	})
 
 	// Here you will define your flags and configuration settings.
 
