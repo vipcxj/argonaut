@@ -1,0 +1,15 @@
+# Binaries for the current OS and architecture
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+*.bak
+*~
+
+argonaut
+.vscode
