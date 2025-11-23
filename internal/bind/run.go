@@ -96,7 +96,11 @@ func Run(cmd *cobra.Command, args []string) error {
 					if err != nil {
 						return err
 					}
-					spec.Value = values
+					if values, err := parseMultiValues(spec.MultiFormat, values, flagName); err != nil {
+						return err
+					} else {
+						spec.Value = values
+					}
 				} else {
 					value, err := cmd.Flags().GetString(flagName)
 					if err != nil {
