@@ -1,7 +1,7 @@
 package bind
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,17 +11,9 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type FlagSpec struct {
-	ShortName   string
-	Default     []string
-	Choices     []string
-	Required    bool
-	Multi       bool
-	MultiFormat []string
-	Helper      string
-}
-
 var AllowedMultiFormats = []string{"comma", "newline", "space", "json"}
+
+var errExit = errors.New("exit")
 
 func checkInStringSlice(value string, slice []string) bool {
 	for _, f := range slice {
@@ -44,84 +36,6 @@ func checkMultiFormat(formats []string, flag string) error {
 	return nil
 }
 
-func splitAndTrim(s string, seps string) []string {
-	isSep := func(r rune) bool { return strings.ContainsRune(seps, r) }
-	parts := strings.FieldsFunc(s, isSep) // 自动丢弃空片段
-	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
-	}
-	return parts
-}
-
-func parseMultiValues(formats []string, rawValues []string, flag string) ([]string, error) {
-	if rawValues == nil {
-		return nil, nil
-	}
-	if len(rawValues) == 0 {
-		return []string{}, nil
-	}
-	if len(formats) == 0 {
-		return rawValues, nil
-	}
-	if checkInStringSlice("json", formats) {
-		if len(formats) > 1 {
-			return nil, fmt.Errorf("multi format 'json' for flag %s cannot be combined with other formats", flag)
-		}
-		var result []string
-		for _, raw := range rawValues {
-			raw = strings.TrimSpace(raw)
-			if raw == "" {
-				continue
-			}
-			// 尝试解析为 JSON 数组
-			var arr []string
-			if err := json.Unmarshal([]byte(raw), &arr); err == nil {
-				result = append(result, arr...)
-				continue
-			}
-			// 尝试解析为单个 JSON 字符串（"value"）
-			var s string
-			if err := json.Unmarshal([]byte(raw), &s); err == nil {
-				result = append(result, s)
-				continue
-			}
-			return nil, fmt.Errorf("invalid json multi value: %s for flag %s", raw, flag)
-		}
-		return result, nil
-	} else {
-		sepsBuilder := strings.Builder{}
-		for _, format := range formats {
-			switch format {
-			case "comma":
-				sepsBuilder.WriteString(",")
-			case "newline":
-				sepsBuilder.WriteString("\r\n")
-			case "space":
-				sepsBuilder.WriteString(" ")
-			default:
-				return nil, fmt.Errorf("unsupported multi format: %s for flag %s", format, flag)
-			}
-		}
-		seps := sepsBuilder.String()
-		var result []string
-		for _, raw := range rawValues {
-			splitValues := splitAndTrim(raw, seps)
-			result = append(result, splitValues...)
-		}
-		return result, nil
-	}
-}
-
-type CmdSpec struct {
-	Name        string
-	ShortDesc   string
-	LongDesc    string
-	Interactive bool
-	Flags       map[string]*FlagSpec
-	Args        int
-	ArgsChoices [][]string
-}
-
 const ShortDesc = "Define, bind and validate CLI arguments, then export them as shell environment variables"
 
 const LongDesc = `Bind collects declarative argument specifications (defaults, allowed values, required/multi flags),
@@ -131,15 +45,81 @@ handle multi-valued flags, and finally emit shell-friendly "export" statements
 so calling scripts can eval/source the output to import variables into their environment.`
 
 // Run is the migrated command logic for the bind command.
-func Run(cmd *cobra.Command, args []string) {
+func Run(cmd *cobra.Command, args []string) error {
 	var err error
 	cmdArgs, userArgs := splitAtDoubleDash(args)
-	spec := collectSpecs(cmd, cmdArgs, userArgs)
+	spec, err := collectSpecs(cmd, cmdArgs, userArgs)
+	if err != nil {
+		if errors.Is(err, errExit) {
+			cmd.SilenceErrors = true
+		}
+		return err
+	}
 	realCmd := &cobra.Command{
 		Use:   spec.Name,
 		Short: spec.ShortDesc,
 		Long:  spec.LongDesc,
+		Args: func(cmd *cobra.Command, args []string) error {
+			argsRange := &spec.ArgsRange
+			if argsRange.LessThan(0) {
+				return fmt.Errorf("invalid args range: %s", spec.ArgsRange.String())
+			}
+			if argsRange.IsLessThan() {
+				return cobra.MaximumNArgs(argsRange.Max-1)(cmd, args)
+			} else if argsRange.IsLessOrEqualThan() {
+				return cobra.MaximumNArgs(argsRange.Max)(cmd, args)
+			} else if argsRange.IsGreaterThan() {
+				return cobra.MinimumNArgs(argsRange.Min+1)(cmd, args)
+			} else if argsRange.IsGreaterOrEqualThan() {
+				return cobra.MinimumNArgs(argsRange.Min)(cmd, args)
+			} else if argsRange.IsSingleValue() {
+				n, _ := argsRange.SingleValue()
+				return cobra.ExactArgs(n)(cmd, args)
+			} else if argsRange.IsUnbounded() {
+				return cobra.ArbitraryArgs(cmd, args)
+			} else {
+				min := argsRange.Min
+				if !argsRange.MinInclude {
+					min += 1
+				}
+				max := argsRange.Max
+				if !argsRange.MaxInclude {
+					max -= 1
+				}
+				return cobra.RangeArgs(min, max)(cmd, args)
+			}
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			for flagName, spec := range spec.Flags {
+				if spec.Multi {
+					values, err := cmd.Flags().GetStringArray(flagName)
+					if err != nil {
+						return err
+					}
+					spec.Value = values
+				} else {
+					value, err := cmd.Flags().GetString(flagName)
+					if err != nil {
+						return err
+					}
+					spec.Value = []string{value}
+				}
+				if len(spec.Choices) > 0 {
+					for _, val := range spec.Value {
+						if !checkInStringSlice(val, spec.Choices) {
+							return fmt.Errorf("value %s for flag %s is not in allowed choices %v", val, flagName, spec.Choices)
+						}
+					}
+				}
+			}
+			output, err := exportEnvVar(spec)
+			if err != nil {
+				return err
+			}
+			fmt.Println(output)
+			if spec.Debug {
+				fmt.Fprintln(os.Stderr, output)
+			}
 			return nil
 		},
 	}
@@ -174,8 +154,10 @@ func Run(cmd *cobra.Command, args []string) {
 	realCmd.SetArgs(userArgs[1:]) // skip the first arg which is the command name
 	err = realCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		// this is the error of real cmd, not the bind cmd
+		cmd.SilenceErrors = true
 	}
+	return err
 }
 
 func collectFlagsName(args []string) ([]string, error) {
@@ -215,6 +197,7 @@ func collectFlagsMulti(specs map[string]*FlagSpec, flagsName []string, argsValue
 			Default:     []string{},
 			Choices:     []string{},
 			MultiFormat: []string{AllowedMultiFormats[0]},
+			Value:       []string{},
 		}
 		flag_name := fmt.Sprintf("flag-%s-multi", flagName)
 		fs.BoolP(flag_name, "", false, "")
@@ -239,20 +222,22 @@ func collectFlagsMulti(specs map[string]*FlagSpec, flagsName []string, argsValue
 	return nil
 }
 
-func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *CmdSpec {
+func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*CmdSpec, error) {
 	rootCmd := cmd.Root()
 	specs := &CmdSpec{
-		Flags: make(map[string]*FlagSpec),
+		Flags:       make(map[string]*FlagSpec),
+		ArgsChoices: [][]string{},
+		ArgsValue:   []string{},
 	}
 	flagsName, err := collectFlagsName(bindArgs)
 	if err != nil {
 		cmd.PrintErrln(fmt.Sprintf("%s %v", cmd.ErrPrefix(), err))
-		os.Exit(1)
+		return nil, errExit
 	}
 	err = collectFlagsMulti(specs.Flags, flagsName, bindArgs)
 	if err != nil {
 		cmd.PrintErrln(fmt.Sprintf("%s %v", cmd.ErrPrefix(), err))
-		os.Exit(1)
+		return nil, errExit
 	}
 	virtualRootCmd := &cobra.Command{
 		Use:   rootCmd.Use,
@@ -302,19 +287,36 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 					return fmt.Errorf("repeated argument names: %v", repeated)
 				}
 			}
-			interactive, err := cmd.Flags().GetBool("interactive")
+			// interactive, err := cmd.Flags().GetBool("interactive")
+			// if err != nil {
+			// 	return err
+			// }
+			// specs.Interactive = interactive
+			debug, err := cmd.Flags().GetBool("debug")
 			if err != nil {
 				return err
 			}
-			specs.Interactive = interactive
-			argsCount, err := cmd.Flags().GetInt("args")
+			specs.Debug = debug
+			shellType, err := cmd.Flags().GetString("shell-type")
 			if err != nil {
 				return err
 			}
-			if argsCount < -1 {
-				return fmt.Errorf("invalid args count: %d, should be -1 or non-negative", argsCount)
+			if shellType, err := ShellTypeString(shellType); err != nil {
+				return fmt.Errorf("invalid shell type: %s, allowed types are: %v", shellType, ShellTypeStrings())
+			} else {
+				specs.ShellType = shellType
 			}
-			specs.Args = argsCount
+			argsRangeStr, err := cmd.Flags().GetString("args-range")
+			if err != nil {
+				return err
+			}
+			if argsRange, err := NewIntRange(argsRangeStr, true); err != nil {
+				return fmt.Errorf("invalid args range: %s, error: %v", argsRangeStr, err)
+			} else if argsRange.LessThan(0) {
+				return fmt.Errorf("invalid args range: %s, range is not valid", argsRangeStr)
+			} else {
+				specs.ArgsRange = argsRange
+			}
 			for flagName, spec := range specs.Flags {
 				err = checkMultiFormat(spec.MultiFormat, flagName)
 				if err != nil {
@@ -325,6 +327,8 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 				choicesFlag := fmt.Sprintf("flag-%s-choices", flagName)
 				requiredFlag := fmt.Sprintf("flag-%s-required", flagName)
 				helperFlag := fmt.Sprintf("flag-%s-helper", flagName)
+				envFlag := fmt.Sprintf("flag-%s-env-name", flagName)
+				exportFlag := fmt.Sprintf("flag-%s-export", flagName)
 				shortValue, err := cmd.Flags().GetString(shortFlag)
 				if err != nil {
 					return err
@@ -335,6 +339,16 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 					return err
 				}
 				spec.Helper = helperValue
+				envValue, err := cmd.Flags().GetString(envFlag)
+				if err != nil {
+					return err
+				}
+				spec.EnvName = envValue
+				exportValue, err := cmd.Flags().GetBool(exportFlag)
+				if err != nil {
+					return err
+				}
+				spec.Export = exportValue
 				if spec.Multi {
 					if defaultValues, err := cmd.Flags().GetStringArray(defaultFlag); err != nil {
 						return err
@@ -350,12 +364,16 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 					if err != nil {
 						return err
 					}
-					spec.Default = []string{defaultValue}
+					if defaultValue == "" {
+						spec.Default = []string{}
+					} else {
+						spec.Default = []string{defaultValue}
+					}
 				}
 				if choicesValue, err := cmd.Flags().GetStringArray(choicesFlag); err != nil {
 					return err
 				} else {
-					if choicesValue, err := parseMultiValues([]string{"comma"}, choicesValue, flagName); err != nil {
+					if choicesValue, err := parseMultiValues(spec.MultiFormat, choicesValue, flagName); err != nil {
 						return err
 					} else {
 						spec.Choices = choicesValue
@@ -381,9 +399,11 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 	bindCmd.Flags().StringP("name", "n", "", "The name of the command")
 	bindCmd.Flags().StringP("short", "s", "", "The short description of the command")
 	bindCmd.Flags().StringP("long", "l", "", "The long description of the command")
-	bindCmd.Flags().BoolP("interactive", "i", false, "Enable interactive mode for user prompts")
+	// bindCmd.Flags().BoolP("interactive", "i", false, "Enable interactive mode for user prompts")
 	bindCmd.Flags().BoolP("allow-repeated-flags", "r", false, "Allow repeated flag names")
-	bindCmd.Flags().IntP("args", "a", 0, "The number of positional arguments, -1 for unlimited")
+	bindCmd.Flags().BoolP("debug", "d", false, "Enable debug mode, print output to stderr as well")
+	bindCmd.Flags().StringP("shell-type", "", ShellTypeAuto.String(), fmt.Sprintf("The shell type for output, one of: %s", strings.Join(ShellTypeStrings(), ", ")))
+	bindCmd.Flags().StringP("args-range", "a", "", "The range of positional arguments, e.g. 1, >1, <=3, [1,3], (,5], [2,), (,) for unlimited")
 	bindCmd.Flags().StringSliceP("flag", "f", []string{}, "Name For flag")
 	for flagName, spec := range specs.Flags {
 		shortFlag := fmt.Sprintf("flag-%s-short", flagName)
@@ -407,6 +427,10 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 		bindCmd.Flags().StringArrayP(choicesFlag, "", []string{}, fmt.Sprintf("Allowed choices for flag %s", flagName))
 		requiredFlag := fmt.Sprintf("flag-%s-required", flagName)
 		bindCmd.Flags().BoolP(requiredFlag, "", false, fmt.Sprintf("Whether flag %s is required", flagName))
+		envFlag := fmt.Sprintf("flag-%s-env-name", flagName)
+		bindCmd.Flags().StringP(envFlag, "", "", fmt.Sprintf("Environment variable name for flag %s, default is upper-case with '-' replaced by '_'", flagName))
+		exportFlag := fmt.Sprintf("flag-%s-export", flagName)
+		bindCmd.Flags().BoolP(exportFlag, "", false, fmt.Sprintf("Whether flag %s should be exported as environment variable", flagName))
 	}
 	virtualRootCmd.AddCommand(bindCmd)
 	argsWithBind := append([]string{"bind"}, bindArgs...)
@@ -414,22 +438,22 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) *Cmd
 
 	err = virtualRootCmd.Execute()
 	if err != nil {
-		os.Exit(1)
+		return nil, errExit
 	}
 	// 如果只请求帮助信息，则退出成功
 	if bindCmd.Flags().Changed("help") {
-		os.Exit(0)
+		return nil, errExit
 	}
 
 	if len(userArgs) == 0 {
 		bindCmd.PrintErrln(fmt.Sprintf("%s no user arguments provided after '--', at least $0 should be provided", bindCmd.ErrPrefix()))
 		bindCmd.Usage()
-		os.Exit(1)
+		return nil, errExit
 	}
 	if specs.Name == "" {
 		specs.Name = userArgs[0]
 	}
-	return specs
+	return specs, nil
 }
 
 // splitAtDoubleDash 在 args 中查找第一个 "--" 并返回两段切片：

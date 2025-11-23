@@ -1,0 +1,11 @@
+# Defaults: default used when not provided
+$ argonaut bind --shell-type=sh --flag=name --flag-name-default=defaultname -- a
+<<< UPDATE >>>
+
+# Defaults vs choices: default is within choices
+$ argonaut bind --shell-type=sh --flag=mode --flag-mode-default=auto --flag-mode-choices=auto,manual -- a
+<<< UPDATE >>>
+
+# Defaults vs choices: default not within choices (should be validation error)
+$ argonaut bind --shell-type=sh --flag=mode --flag-mode-default=bad --flag-mode-choices=auto,manual -- a
+<<< UPDATE >>>

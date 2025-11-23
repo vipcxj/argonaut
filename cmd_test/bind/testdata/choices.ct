@@ -1,0 +1,10 @@
+# Choices: provided value in choices (comma list)
+$ argonaut bind --shell-type=sh --flag=color --flag-color-choices=red,green,blue -- a --color=green
+<<< UPDATE >>>
+
+# Choices: provided value not in choices (should error)
+$ argonaut bind --shell-type=sh --flag=color --flag-color-choices=red,green,blue -- a --color=yellow  --> FAIL
+
+# Choices: choices provided as JSON-like multi-format (ensure multi-format influences parsing)
+$ argonaut bind --shell-type=sh --flag=tags --flag-tags-multi --flag-tags-multi-format=json --flag-tags-choices='["a","b"]' -- a --tags='["a","b"]'
+<<< UPDATE >>>

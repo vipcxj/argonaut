@@ -1,0 +1,7 @@
+# Short name support: provide via short -u
+$ argonaut bind --shell-type=sh --flag=username --flag-username-short=u -- a -u=admin
+USERNAME='admin'
+
+# Short name combined with long form
+$ argonaut bind --shell-type=sh --flag=username --flag-username-short=u -- a --username=bob -u=alice
+USERNAME='alice'

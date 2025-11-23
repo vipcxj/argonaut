@@ -1,0 +1,11 @@
+# Array vs scalar: flag declared multi but single value provided
+$ argonaut bind --shell-type=sh --flag=items --flag-items-multi -- a --items=solo
+ITEMS='solo'
+
+# Array vs scalar: flag not multi but passed multiple times (should error or take last depending impl)
+$ argonaut bind --shell-type=sh --flag=items -- a --items=one --items=two
+ITEMS='two'
+
+# Array with multi-format comma while flag provided as repeated occurrences
+$ argonaut bind --shell-type=sh --flag=items --flag-items-multi --flag-items-multi-format=comma -- a --items=one,two --items=three
+ITEMS='one,two,three'

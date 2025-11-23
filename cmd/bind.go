@@ -15,7 +15,7 @@ var bindCmd = &cobra.Command{
 	Short:              bind.ShortDesc,
 	Long:               bind.LongDesc,
 	DisableFlagParsing: true,
-	Run:                bind.Run,
+	RunE:               bind.Run,
 }
 
 func init() {
