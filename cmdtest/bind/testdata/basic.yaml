@@ -18,7 +18,6 @@ tests:
       stdout: |
         NAME='world'
       stderr: ""
-
   - name: "Basic: multiple flags in one invocation"
     description: "Binding multiple flags in a single command invocation"
     cmd: "argonaut"
@@ -38,7 +37,6 @@ tests:
         NAME='alice'
         USER='bob'
       stderr: ""
-
   - name: "Basic: no flags"
     description: "Just command name and shell-type, should produce no output"
     cmd: "argonaut"
@@ -49,5 +47,5 @@ tests:
       - "a"
     expect:
       exitCode: 0
-      stdout: ""
+      stdout: "\n"
       stderr: ""

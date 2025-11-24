@@ -91,24 +91,38 @@ func Run(cmd *cobra.Command, args []string) error {
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for flagName, spec := range spec.Flags {
-				if spec.Multi {
-					values, err := cmd.Flags().GetStringArray(flagName)
-					if err != nil {
-						return err
-					}
-					if values, err := parseMultiValues(spec.MultiFormat, values, flagName); err != nil {
-						return err
+				valueSet := false
+				if spec.Required && !cmd.Flags().Changed(flagName) {
+					if spec.Default == nil {
+						return fmt.Errorf("required flag %s is not provided and has no default value", flagName)
 					} else {
-						spec.Value = values
+						spec.Value = spec.Default
+						valueSet = true
 					}
-				} else {
-					value, err := cmd.Flags().GetString(flagName)
-					if err != nil {
-						return err
+				}
+				if !valueSet {
+					if spec.Multi {
+						values, err := cmd.Flags().GetStringArray(flagName)
+						if err != nil {
+							return err
+						}
+						if values, err := parseMultiValues(spec.MultiFormat, values, flagName); err != nil {
+							return err
+						} else {
+							spec.Value = values
+						}
+					} else {
+						value, err := cmd.Flags().GetString(flagName)
+						if err != nil {
+							return err
+						}
+						spec.Value = []string{value}
 					}
-					spec.Value = []string{value}
 				}
 				if len(spec.Choices) > 0 {
+					if len(spec.Value) == 0 {
+						return fmt.Errorf("value for flag %s is empty but choices are defined %v", flagName, spec.Choices)
+					}
 					for _, val := range spec.Value {
 						if !checkInStringSlice(val, spec.Choices) {
 							return fmt.Errorf("value %s for flag %s is not in allowed choices %v", val, flagName, spec.Choices)
@@ -151,9 +165,9 @@ func Run(cmd *cobra.Command, args []string) error {
 				return completions, cobra.ShellCompDirectiveDefault
 			})
 		}
-		if spec.Required {
-			realCmd.MarkFlagRequired(flagName)
-		}
+		// if spec.Required {
+		// 	realCmd.MarkFlagRequired(flagName)
+		// }
 	}
 	realCmd.SetArgs(userArgs[1:]) // skip the first arg which is the command name
 	err = realCmd.Execute()
@@ -353,26 +367,26 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 					return err
 				}
 				spec.Export = exportValue
-				if spec.Multi {
-					if defaultValues, err := cmd.Flags().GetStringArray(defaultFlag); err != nil {
-						return err
-					} else {
-						if defaultValues, err := parseMultiValues(spec.MultiFormat, defaultValues, flagName); err != nil {
+				if cmd.Flags().Changed(defaultFlag) {
+					if spec.Multi {
+						if defaultValues, err := cmd.Flags().GetStringArray(defaultFlag); err != nil {
 							return err
 						} else {
-							spec.Default = defaultValues
+							if defaultValues, err := parseMultiValues(spec.MultiFormat, defaultValues, flagName); err != nil {
+								return err
+							} else {
+								spec.Default = defaultValues
+							}
 						}
-					}
-				} else {
-					defaultValue, err := cmd.Flags().GetString(defaultFlag)
-					if err != nil {
-						return err
-					}
-					if defaultValue == "" {
-						spec.Default = []string{}
 					} else {
+						defaultValue, err := cmd.Flags().GetString(defaultFlag)
+						if err != nil {
+							return err
+						}
 						spec.Default = []string{defaultValue}
 					}
+				} else {
+					spec.Default = nil
 				}
 				if choicesValue, err := cmd.Flags().GetStringArray(choicesFlag); err != nil {
 					return err
@@ -389,7 +403,10 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 				}
 				spec.Required = requiredValue
 
-				if len(spec.Choices) > 0 && len(spec.Default) > 0 {
+				if len(spec.Choices) > 0 && spec.Default != nil {
+					if len(spec.Default) == 0 && !spec.Required {
+						return fmt.Errorf("default value for optional flag %s is empty but choices are defined %v", flagName, spec.Choices)
+					}
 					for _, def := range spec.Default {
 						if !checkInStringSlice(def, spec.Choices) {
 							return fmt.Errorf("default value %s for flag %s is not in allowed choices %v", def, flagName, spec.Choices)

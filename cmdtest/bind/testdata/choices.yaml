@@ -13,9 +13,8 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        <<< UPDATE >>>
+        COLOR='green'
       stderr: ""
-
   - name: "Choices: value outside list"
     description: "提供 yellow，应触发校验错误"
     cmd: "argonaut"
@@ -30,9 +29,7 @@ tests:
     expect:
       exitCode: 1
       stdout: ""
-      stderr: |
-        <<< UPDATE >>>
-
+      stderr: "Error: value yellow for flag color is not in allowed choices [red green blue]\nUsage:\n  a [flags]\n\nFlags:\n      --color string   \n  -h, --help           help for a\n\nUsage:\n  argonaut bind [flags]\n\nFlags:\n  -h, --help   help for bind\n\n"
   - name: "Choices: multi-format JSON list"
     description: "choices 与传入值都用 JSON 表示"
     cmd: "argonaut"
@@ -49,5 +46,5 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        <<< UPDATE >>>
+        TAGS='["a","b"]'
       stderr: ""

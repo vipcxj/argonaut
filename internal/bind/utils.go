@@ -11,7 +11,10 @@ func splitAndTrim(s string, seps string) []string {
 	isSep := func(r rune) bool { return strings.ContainsRune(seps, r) }
 	parts := strings.FieldsFunc(s, isSep) // 自动丢弃空片段
 	for i := range parts {
-		parts[i] = strings.TrimSpace(parts[i])
+		part := strings.TrimSpace(parts[i])
+		if part != "" {
+			parts[i] = part
+		}
 	}
 	return parts
 }

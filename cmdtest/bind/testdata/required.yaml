@@ -12,8 +12,20 @@ tests:
     expect:
       exitCode: 1
       stdout: ""
-      stderr: |
-        <<< UPDATE >>>
+      stderr: |+
+        Error: required flag user is not provided and has no default value
+        Usage:
+          a [flags]
+
+        Flags:
+          -h, --help          help for a
+              --user string
+
+        Usage:
+          argonaut bind [flags]
+
+        Flags:
+          -h, --help   help for bind
 
   - name: "Required 正常提供"
     description: "提供 --user=admin"
@@ -31,7 +43,6 @@ tests:
       stdout: |
         USER='admin'
       stderr: ""
-
   - name: "Required + 默认值"
     description: "缺省由 default 满足"
     cmd: "argonaut"

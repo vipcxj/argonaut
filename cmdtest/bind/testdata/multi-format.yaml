@@ -16,7 +16,6 @@ tests:
       stdout: |
         TAGS='one,two,three'
       stderr: ""
-
   - name: "Multi-format space"
     description: "空格分隔（依赖引号）"
     cmd: "argonaut"
@@ -33,9 +32,8 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        TAGS='"one
+        TAGS='one two three'
       stderr: ""
-
   - name: "Multi-format newline"
     description: "按重复 flag 形成换行"
     cmd: "argonaut"
@@ -57,7 +55,6 @@ tests:
         two
         three'
       stderr: ""
-
   - name: "Multi-format json"
     description: "输入为 JSON 数组"
     cmd: "argonaut"
@@ -69,9 +66,10 @@ tests:
       - "--flag-tags-multi-format=json"
       - "--"
       - "a"
-      - "--tags=['\"one\"','\"two\"']"
+      - "--tags"
+      - '["one","two","three"]'
     expect:
       exitCode: 0
       stdout: |
-        TAGS='["'\''[\"one\",\"two\"]'\''"]'
+        TAGS='["one","two","three"]'
       stderr: ""

@@ -13,9 +13,8 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        <<< UPDATE >>>
+        LEVEL='info'
       stderr: ""
-
   - name: "Helper + required"
     description: "helper 与 required 同时存在"
     cmd: "argonaut"
@@ -31,5 +30,5 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        <<< UPDATE >>>
+        LEVEL='debug'
       stderr: ""

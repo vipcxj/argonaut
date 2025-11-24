@@ -1,7 +1,0 @@
-# Helper text present (should not affect runtime, only informational)
-$ argonaut bind --shell-type=sh --flag=level --flag-level-helper="verbosity level" -- a --level=info
-<<< UPDATE >>>
-
-# Helper with required flag (ensure help text doesn't interfere)
-$ argonaut bind --shell-type=sh --flag=level --flag-level-helper="verbosity level" --flag-level-required -- a --level=debug
-<<< UPDATE >>>
