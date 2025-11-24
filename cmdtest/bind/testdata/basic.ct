@@ -1,5 +1,5 @@
 # Basic functionality: simple flag binding, explicit shell-type
-$ argonaut bind --shell-type=sh --flag=name --flag-name-default=hello -- a --name=world
+$ argonaut bind --shell-type=sh --flag=name --flag-name-default="hello" -- a --name=world
 NAME='world'
 
 # Basic: multiple flags in one invocation

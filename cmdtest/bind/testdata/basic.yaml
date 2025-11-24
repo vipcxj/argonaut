@@ -1,0 +1,53 @@
+tests:
+  - name: "Basic functionality: simple flag binding, explicit shell-type"
+    description: "Simple flag binding with default value and explicit shell type"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type"
+      - "sh"
+      - "--flag"
+      - "name"
+      - "--flag-name-default"
+      - "hello"
+      - "--"
+      - "a"
+      - "--name=world"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='world'
+      stderr: ""
+
+  - name: "Basic: multiple flags in one invocation"
+    description: "Binding multiple flags in a single command invocation"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag=user"
+      - "--flag-user-default=guest"
+      - "--"
+      - "a"
+      - "--name=alice"
+      - "--user=bob"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='alice'
+        USER='bob'
+      stderr: ""
+
+  - name: "Basic: no flags"
+    description: "Just command name and shell-type, should produce no output"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: ""
+      stderr: ""

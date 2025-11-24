@@ -1,0 +1,53 @@
+tests:
+  - name: "Multi flag 单值"
+    description: "声明 multi 但仅提供一次"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=items"
+      - "--flag-items-multi"
+      - "--"
+      - "a"
+      - "--items=solo"
+    expect:
+      exitCode: 0
+      stdout: |
+        ITEMS='solo'
+      stderr: ""
+
+  - name: "非 multi 多次赋值"
+    description: "未声明 multi 却多次出现"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=items"
+      - "--"
+      - "a"
+      - "--items=one"
+      - "--items=two"
+    expect:
+      exitCode: 0
+      stdout: |
+        ITEMS='two'
+      stderr: ""
+
+  - name: "Multi + comma format"
+    description: "重复 flag + comma format"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=items"
+      - "--flag-items-multi"
+      - "--flag-items-multi-format=comma"
+      - "--"
+      - "a"
+      - "--items=one,two"
+      - "--items=three"
+    expect:
+      exitCode: 0
+      stdout: |
+        ITEMS='one,two,three'
+      stderr: ""

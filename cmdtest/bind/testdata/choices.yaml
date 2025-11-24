@@ -1,0 +1,53 @@
+tests:
+  - name: "Choices: value within list"
+    description: "Flag value被限定在 red/green/blue 中，传入 green"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=color"
+      - "--flag-color-choices=red,green,blue"
+      - "--"
+      - "a"
+      - "--color=green"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""
+
+  - name: "Choices: value outside list"
+    description: "提供 yellow，应触发校验错误"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=color"
+      - "--flag-color-choices=red,green,blue"
+      - "--"
+      - "a"
+      - "--color=yellow"
+    expect:
+      exitCode: 1
+      stdout: ""
+      stderr: |
+        <<< UPDATE >>>
+
+  - name: "Choices: multi-format JSON list"
+    description: "choices 与传入值都用 JSON 表示"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=tags"
+      - "--flag-tags-multi"
+      - "--flag-tags-multi-format=json"
+      - "--flag-tags-choices=[\"a\",\"b\"]"
+      - "--"
+      - "a"
+      - "--tags=[\"a\",\"b\"]"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""

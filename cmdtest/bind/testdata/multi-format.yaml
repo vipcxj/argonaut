@@ -1,0 +1,77 @@
+tests:
+  - name: "Multi-format comma"
+    description: "逗号分隔列表"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=tags"
+      - "--flag-tags-multi"
+      - "--flag-tags-multi-format=comma"
+      - "--"
+      - "a"
+      - "--tags=one,two,three"
+    expect:
+      exitCode: 0
+      stdout: |
+        TAGS='one,two,three'
+      stderr: ""
+
+  - name: "Multi-format space"
+    description: "空格分隔（依赖引号）"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=tags"
+      - "--flag-tags-multi"
+      - "--flag-tags-multi-format=space"
+      - "--"
+      - "a"
+      - "--tags"
+      - "one two three"
+    expect:
+      exitCode: 0
+      stdout: |
+        TAGS='"one
+      stderr: ""
+
+  - name: "Multi-format newline"
+    description: "按重复 flag 形成换行"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=tags"
+      - "--flag-tags-multi"
+      - "--flag-tags-multi-format=newline"
+      - "--"
+      - "a"
+      - "--tags=one"
+      - "--tags=two"
+      - "--tags=three"
+    expect:
+      exitCode: 0
+      stdout: |
+        TAGS='one
+        two
+        three'
+      stderr: ""
+
+  - name: "Multi-format json"
+    description: "输入为 JSON 数组"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=tags"
+      - "--flag-tags-multi"
+      - "--flag-tags-multi-format=json"
+      - "--"
+      - "a"
+      - "--tags=['\"one\"','\"two\"']"
+    expect:
+      exitCode: 0
+      stdout: |
+        TAGS='["'\''[\"one\",\"two\"]'\''"]'
+      stderr: ""

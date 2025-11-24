@@ -1,0 +1,50 @@
+tests:
+  - name: "Default 被使用"
+    description: "未提供 name 时使用默认值"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-default=defaultname"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""
+
+  - name: "Default 在 choices 内"
+    description: "default=auto 且在 choices 中"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=mode"
+      - "--flag-mode-default=auto"
+      - "--flag-mode-choices=auto,manual"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""
+
+  - name: "Default 不在 choices 内"
+    description: "default=bad 应报错"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=mode"
+      - "--flag-mode-default=bad"
+      - "--flag-mode-choices=auto,manual"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 1
+      stdout: ""
+      stderr: |
+        <<< UPDATE >>>

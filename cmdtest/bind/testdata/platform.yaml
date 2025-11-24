@@ -1,0 +1,51 @@
+tests:
+  - name: "Platform sh"
+    description: "显式 shell-type=sh"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=alice"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='alice'
+      stderr: ""
+
+  - name: "Platform powershell"
+    description: "生成 PowerShell 语句"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=powershell"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=alice"
+    expect:
+      exitCode: 0
+      stdout: |
+        $Env:NAME = 'alice'
+      stderr: ""
+
+  - name: "Platform cmd"
+    description: "生成 Windows CMD 语句"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=cmd"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=alice"
+    expect:
+      exitCode: 0
+      stdout: |
+        set "NAME=alice"
+      stderr: ""

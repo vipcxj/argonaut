@@ -1,0 +1,35 @@
+tests:
+  - name: "Helper 文本"
+    description: "helper 仅展示信息，不影响运行"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=level"
+      - "--flag-level-helper=verbosity level"
+      - "--"
+      - "a"
+      - "--level=info"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""
+
+  - name: "Helper + required"
+    description: "helper 与 required 同时存在"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=level"
+      - "--flag-level-helper=verbosity level"
+      - "--flag-level-required"
+      - "--"
+      - "a"
+      - "--level=debug"
+    expect:
+      exitCode: 0
+      stdout: |
+        <<< UPDATE >>>
+      stderr: ""

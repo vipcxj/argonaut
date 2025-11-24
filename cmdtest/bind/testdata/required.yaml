@@ -1,0 +1,50 @@
+tests:
+  - name: "Required 缺失"
+    description: "必填未提供应报错"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=user"
+      - "--flag-user-required"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 1
+      stdout: ""
+      stderr: |
+        <<< UPDATE >>>
+
+  - name: "Required 正常提供"
+    description: "提供 --user=admin"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=user"
+      - "--flag-user-required"
+      - "--"
+      - "a"
+      - "--user=admin"
+    expect:
+      exitCode: 0
+      stdout: |
+        USER='admin'
+      stderr: ""
+
+  - name: "Required + 默认值"
+    description: "缺省由 default 满足"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=user"
+      - "--flag-user-required"
+      - "--flag-user-default=guest"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        USER='guest'
+      stderr: ""

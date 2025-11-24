@@ -5,14 +5,13 @@ go 1.25.4
 require (
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	github.com/dmarkham/enumer v1.6.1 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/renameio v0.1.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/pascaldekloe/name v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
@@ -26,7 +25,6 @@ require (
 )
 
 require (
-	github.com/google/go-cmdtest v0.4.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.25.10
 )
