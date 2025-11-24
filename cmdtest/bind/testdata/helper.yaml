@@ -1,34 +1,75 @@
 tests:
-  - name: "Helper 文本"
-    description: "helper 仅展示信息，不影响运行"
+  - name: "Helper for bind"
+    description: "如果没有--，以及后面跟着的用户传入的命令行，则输出bind子命令本身的帮助信息"
     cmd: "argonaut"
     args:
       - "bind"
       - "--shell-type=sh"
       - "--flag=level"
       - "--flag-level-helper=verbosity level"
-      - "--"
-      - "a"
-      - "--level=info"
+      - "--help"
     expect:
       exitCode: 0
       stdout: |
-        LEVEL='info'
+        Bind collects declarative argument specifications (defaults, allowed values, required/multi flags),
+        validates inputs, and supports two operation modes: auto, interactive and non-interactive.
+        It can prompt users with keyboard-driven selectors, enforce allowed values,
+        handle multi-valued flags, and finally emit shell-friendly "export" statements
+        so calling scripts can eval/source the output to import variables into their environment.
+
+        Usage:
+          argonaut bind [flags] -- [user args include $0]
+
+        Examples:
+          [---in shell script: my-shell.sh---]
+          argonaut bind \
+            --flag flag-1 --flag-flag-1-default 1 --flag-flag-1-choices 1,2,3 \
+            --flag flag-2 --flag-flag-2-required --flag-flag-2-choices a,b,c \
+            -- $0 "$@"
+
+          [---then use my-shell.sh like this:--]
+          ./my-shell.sh --flag-1 2 --flag-2 b
+
+        Flags:
+          -r, --allow-repeated-flags             Allow repeated flag names
+          -a, --args-range string                The range of positional arguments, e.g. 1, >1, <=3, [1,3], (,5], [2,), (,) for unlimited
+          -d, --debug                            Enable debug mode, print output to stderr as well
+          -f, --flag strings                     Name For flag
+              --flag-level-choices stringArray   Allowed choices for flag level
+              --flag-level-default string        Default value for flag level
+              --flag-level-env-name string       Environment variable name for flag level, default is upper-case with '-' replaced by '_'
+              --flag-level-export                Whether flag level should be exported as environment variable
+              --flag-level-helper string         Helper text for flag level
+              --flag-level-multi                 Whether flag level is multi-valued
+              --flag-level-multi-format string   Multi value format for flag level, allowed value are combined of comma, newline, space or json (default "comma")
+              --flag-level-required              Whether flag level is required
+              --flag-level-short string          Short name for flag level
+          -h, --help                             help for bind
+          -l, --long string                      The long description of the command
+          -n, --name string                      The name of the command
+              --shell-type string                The shell type for output, one of: auto, sh, powershell, cmd (default "auto")
+          -s, --short string                     The short description of the command
       stderr: ""
-  - name: "Helper + required"
-    description: "helper 与 required 同时存在"
+  - name: "Helper for user defined cmdline"
+    description: "如果是有--，以及后面跟着的用户传入的命令行，则输出用户命令行的帮助信息"
     cmd: "argonaut"
     args:
       - "bind"
       - "--shell-type=sh"
       - "--flag=level"
       - "--flag-level-helper=verbosity level"
-      - "--flag-level-required"
+      - "--flag-level-choices=debug,info,warn,error"
+      - "--flag-level-default=debug"
       - "--"
       - "a"
-      - "--level=debug"
+      - "--help"
     expect:
       exitCode: 0
       stdout: |
-        LEVEL='debug'
+        Usage:
+          a [flags]
+
+        Flags:
+          -h, --help           help for a
+              --level string   verbosity level (default "debug")
       stderr: ""

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -210,7 +211,8 @@ func (s *TestSuite) runSingleTest(t *testing.T, group *TestGroup, idx int, updat
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("panic: %v", r)
+                stack := debug.Stack()
+                t.Errorf("panic: %v\n%s", r, stack)
 				exitCode = -1
 			}
 		}()

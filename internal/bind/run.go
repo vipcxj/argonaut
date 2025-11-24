@@ -51,6 +51,9 @@ func Run(cmd *cobra.Command, args []string) error {
 	spec, err := collectSpecs(cmd, cmdArgs, userArgs)
 	if err != nil {
 		return err
+	} else if spec == nil {
+		// 仅请求帮助信息，退出成功
+		return nil
 	}
 	realCmd := &cobra.Command{
 		Use:   spec.Name,
