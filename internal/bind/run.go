@@ -13,8 +13,6 @@ import (
 
 var AllowedMultiFormats = []string{"comma", "newline", "space", "json"}
 
-var errExit = errors.New("exit")
-
 func checkInStringSlice(value string, slice []string) bool {
 	for _, f := range slice {
 		if value == f {
@@ -46,13 +44,12 @@ so calling scripts can eval/source the output to import variables into their env
 
 // Run is the migrated command logic for the bind command.
 func Run(cmd *cobra.Command, args []string) error {
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 	var err error
 	cmdArgs, userArgs := splitAtDoubleDash(args)
 	spec, err := collectSpecs(cmd, cmdArgs, userArgs)
 	if err != nil {
-		if errors.Is(err, errExit) {
-			cmd.SilenceErrors = true
-		}
 		return err
 	}
 	realCmd := &cobra.Command{
@@ -170,12 +167,7 @@ func Run(cmd *cobra.Command, args []string) error {
 		// }
 	}
 	realCmd.SetArgs(userArgs[1:]) // skip the first arg which is the command name
-	err = realCmd.Execute()
-	if err != nil {
-		// this is the error of real cmd, not the bind cmd
-		cmd.SilenceErrors = true
-	}
-	return err
+	return realCmd.Execute()
 }
 
 func collectFlagsName(args []string) ([]string, error) {
@@ -250,12 +242,12 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 	flagsName, err := collectFlagsName(bindArgs)
 	if err != nil {
 		cmd.PrintErrln(fmt.Sprintf("%s %v", cmd.ErrPrefix(), err))
-		return nil, errExit
+		return nil, err
 	}
 	err = collectFlagsMulti(specs.Flags, flagsName, bindArgs)
 	if err != nil {
 		cmd.PrintErrln(fmt.Sprintf("%s %v", cmd.ErrPrefix(), err))
-		return nil, errExit
+		return nil, err
 	}
 	virtualRootCmd := &cobra.Command{
 		Use:   rootCmd.Use,
@@ -459,17 +451,18 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 
 	err = virtualRootCmd.Execute()
 	if err != nil {
-		return nil, errExit
+		return nil, err
 	}
 	// 如果只请求帮助信息，则退出成功
 	if bindCmd.Flags().Changed("help") {
-		return nil, errExit
+		return nil, nil
 	}
 
 	if len(userArgs) == 0 {
-		bindCmd.PrintErrln(fmt.Sprintf("%s no user arguments provided after '--', at least $0 should be provided", bindCmd.ErrPrefix()))
+		err := errors.New("no user arguments provided after '--', at least $0 should be provided")
+		bindCmd.PrintErrln(fmt.Sprintf("%s %v", bindCmd.ErrPrefix(), err))
 		bindCmd.Usage()
-		return nil, errExit
+		return nil, err
 	}
 	if specs.Name == "" {
 		specs.Name = userArgs[0]

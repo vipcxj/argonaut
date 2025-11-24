@@ -79,9 +79,3 @@ tests:
               --shell-type string               The shell type for output, one of: auto, sh, powershell, cmd (default "auto")
           -s, --short string                    The short description of the command
 
-        Usage:
-          argonaut bind [flags]
-
-        Flags:
-          -h, --help   help for bind
-

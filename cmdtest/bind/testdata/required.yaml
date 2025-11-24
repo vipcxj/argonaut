@@ -21,12 +21,6 @@ tests:
           -h, --help          help for a
               --user string
 
-        Usage:
-          argonaut bind [flags]
-
-        Flags:
-          -h, --help   help for bind
-
   - name: "Required 正常提供"
     description: "提供 --user=admin"
     cmd: "argonaut"

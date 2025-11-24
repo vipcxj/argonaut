@@ -133,14 +133,8 @@ func (s *TestSuite) Register(cmd string, run func() int) {
 	s.commands[cmd] = run
 }
 
-// Run 执行测试
-// 传入 *testing.T 以便集成到 go test 中
-func (s *TestSuite) Run(t *testing.T) {
-	s.RunWithUpdate(t, false)
-}
-
-// RunWithUpdate 执行测试；update=true 时自动写回期望
-func (s *TestSuite) RunWithUpdate(t *testing.T, update bool) {
+// Run 执行测试；update=true 时自动写回期望
+func (s *TestSuite) Run(t *testing.T, update bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -374,8 +368,8 @@ func ensureMapValue(mapNode *yaml.Node, key string) *yaml.Node {
 func setStringScalar(node *yaml.Node, val string) {
 	node.Kind = yaml.ScalarNode
 	node.Tag = "!!str"
-	// 仅当值是单个换行（\n 或 \r\n）时使用双引号，避免 go-yaml 写成空 literal block
-	if val == "\n" || val == "\r\n" {
+	if val == "" || strings.Trim(val, "\r\n") == "" {
+		// 仅当值仅仅由换行符（\n 或 \r\n）组成时使用双引号，避免 go-yaml 写成空 literal block
 		node.Style = yaml.DoubleQuotedStyle
 	} else {
 		node.Style = 0
