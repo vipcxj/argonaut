@@ -10,6 +10,120 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
+func calcEnvName(fs *FlagSpec, key string, prefix string) string {
+	varName := fs.EnvName
+	if varName == "" {
+		varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+	}
+	if prefix != "" {
+		varName = prefix + varName
+	}
+	return varName
+}
+
+// splitPreserveNewlines 将 s 拆分成若干片段，换行序列 "\r\n"、"\r"、"\n" 作为单独元素保留在结果中。
+// 示例 "a\r\nb\nc\r" -> ["a", "\r\n", "b", "\n", "c", "\r"]
+func splitPreserveNewlines(s string) []string {
+	if s == "" {
+		return []string{""}
+	}
+	var parts []string
+	var buf strings.Builder
+	for i := 0; i < len(s); {
+		ch := s[i]
+		if ch == '\r' || ch == '\n' {
+			// flush buffer
+			if buf.Len() > 0 {
+				parts = append(parts, buf.String())
+				buf.Reset()
+			}
+			// detect CRLF
+			if ch == '\r' && i+1 < len(s) && s[i+1] == '\n' {
+				parts = append(parts, "\r\n")
+				i += 2
+			} else {
+				parts = append(parts, string(ch))
+				i++
+			}
+		} else {
+			buf.WriteByte(ch)
+			i++
+		}
+	}
+	if buf.Len() > 0 {
+		parts = append(parts, buf.String())
+	}
+	return parts
+}
+
+// buildShellLiteral: POSIX shell — 最简单且可靠的策略：整体用单引号包裹。
+// 如果字符串中包含单引号，用传统的 '\” 片段拼接方式（'a'\”b'）。
+// 单引号内可以包含换行符，不需要额外转义。
+func buildShellLiteral(s string) string {
+	if s == "" {
+		return "''"
+	}
+	// 若不含单引号，直接单引号包裹（换行也可以）
+	if !strings.Contains(s, "'") {
+		return "'" + s + "'"
+	}
+	// 含单引号时用 '\'' 片段拼接
+	escaped := strings.ReplaceAll(s, "'", `'\''`)
+	return "'" + escaped + "'"
+}
+
+func buildPowershellLiteral(s string) string {
+	if s == "" {
+		return "''"
+	}
+	parts := splitPreserveNewlines(s)
+	var out []string
+	for _, p := range parts {
+		switch p {
+		case "\n":
+			out = append(out, "\"`n\"")
+		case "\r":
+			out = append(out, "\"`r\"")
+		case "\r\n":
+			out = append(out, "\"`r`n\"")
+		default:
+			// 单引号内双写单引号以转义
+			if p == "" {
+				out = append(out, "''")
+			} else {
+				out = append(out, "'"+strings.ReplaceAll(p, "'", "''")+"'")
+			}
+		}
+	}
+	// 使用 + 拼接，以产生一个可被 Invoke-Expression 正确解析的单一表达式
+	return strings.Join(out, " + ")
+}
+
+// buildCmdLiteral: 保留原始换行序列，cmd 里我们使用双引号包裹片段并用 \\r \\n 文字表示换行（set/setx 中通常使用双引号）。
+func buildCmdLiteral(s string) string {
+	parts := splitPreserveNewlines(s)
+	var out []string
+	for _, p := range parts {
+		switch p {
+		case "\n":
+			out = append(out, `"\\n"`)
+		case "\r":
+			out = append(out, `"\\r"`)
+		case "\r\n":
+			out = append(out, `"\\r\\n"`)
+		default:
+			// 在 cmd 里使用双引号并对内部双引号做简单转义
+			escaped := strings.ReplaceAll(p, `"`, `\"`)
+			if escaped == "" {
+				out = append(out, `""`)
+			} else {
+				out = append(out, `"`+escaped+`"`)
+			}
+		}
+	}
+	return strings.Join(out, "")
+}
+
 func exportEnvVarCmdLike(spec *CmdSpec) (string, error) {
 	if spec == nil || len(spec.Flags) == 0 {
 		return "", nil
@@ -30,28 +144,24 @@ func exportEnvVarCmdLike(spec *CmdSpec) (string, error) {
 		}
 
 		// env name: prefer explicit, otherwise normalize flag key
-		varName := fs.EnvName
-		if varName == "" {
-			varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		}
+		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
 		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
 
-		// prepare value for cmd
-		// minimal escaping: double quotes inside value replaced with `\"` (best-effort)
-		escaped := strings.ReplaceAll(val, `"`, `\"`)
+		// buildCmdLiteral 保留原始换行并为 cmd 平台生成分段字面量
+		escaped := buildCmdLiteral(val)
 
 		if fs.Export {
 			// persistent for Windows cmd: use setx
 			// setx VAR "value"
 			lines = append(lines, fmt.Sprintf("setx %s \"%s\"", varName, escaped))
 		} else {
-			// set for current cmd session: set "VAR=value"
-			// quoting the whole assignment avoids issues with spaces
-			lines = append(lines, fmt.Sprintf("set \"%s=%s\"", varName, escaped))
+			// session assignment: wrap assignment in set "VAR=value"
+			// remove outer quotes if any so set "VAR=value" remains valid
+			lines = append(lines, fmt.Sprintf("set \"%s=%s\"", varName, strings.Trim(escaped, `"`)))
 		}
 	}
 
@@ -69,16 +179,6 @@ func exportEnvVarLinuxLike(spec *CmdSpec) (string, error) {
 	}
 	sort.Strings(keys)
 
-	escapeSingle := func(s string) string {
-		// escape single quote for POSIX shell: ' -> '\''  (close, insert quoted single quote, reopen)
-		// implement by replacing ' with '\'' sequence
-		if s == "" {
-			return "''"
-		}
-		// replace each ' with '\'' pattern
-		return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-	}
-
 	var lines []string
 	for _, key := range keys {
 		fs := spec.Flags[key]
@@ -86,17 +186,15 @@ func exportEnvVarLinuxLike(spec *CmdSpec) (string, error) {
 			continue
 		}
 
-		varName := fs.EnvName
-		if varName == "" {
-			varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		}
+		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
 		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
 
-		quoted := escapeSingle(val)
+		// buildShellLiteral 保留原始换行并生成 POSIX shell 字面量片段
+		quoted := buildShellLiteral(val)
 
 		if fs.Export {
 			lines = append(lines, fmt.Sprintf("export %s=%s", varName, quoted))
@@ -134,17 +232,15 @@ func exportEnvVarPowershellLike(spec *CmdSpec) (string, error) {
 			continue
 		}
 
-		varName := fs.EnvName
-		if varName == "" {
-			varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-		}
+		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
 		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
 
-		escaped := escapeForPS(val)
+		// buildPowershellLiteral 返回一个可作为表达式的字符串（可能含 + 连接）
+		escaped := buildPowershellLiteral(val)
 
 		if fs.Export {
 			// persistent for current user

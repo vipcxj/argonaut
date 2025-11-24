@@ -305,6 +305,11 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 			// 	return err
 			// }
 			// specs.Interactive = interactive
+			envPrefix, err := cmd.Flags().GetString("env-prefix")
+			if err != nil {
+				return err
+			}
+			specs.EnvPrefix = envPrefix
 			debug, err := cmd.Flags().GetBool("debug")
 			if err != nil {
 				return err
@@ -416,6 +421,7 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 	bindCmd.Flags().StringP("short", "s", "", "The short description of the command")
 	bindCmd.Flags().StringP("long", "l", "", "The long description of the command")
 	// bindCmd.Flags().BoolP("interactive", "i", false, "Enable interactive mode for user prompts")
+	bindCmd.Flags().StringP("env-prefix", "e", "", "The environment variable prefix for the command; all output env vars will be prefixed with it, even those whose names are specified using --flag-<name>-env-name")
 	bindCmd.Flags().BoolP("allow-repeated-flags", "r", false, "Allow repeated flag names")
 	bindCmd.Flags().BoolP("debug", "d", false, "Enable debug mode, print output to stderr as well")
 	bindCmd.Flags().StringP("shell-type", "", ShellTypeAuto.String(), fmt.Sprintf("The shell type for output, one of: %s", strings.Join(ShellTypeStrings(), ", ")))

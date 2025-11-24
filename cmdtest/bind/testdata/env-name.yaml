@@ -1,0 +1,82 @@
+tests:
+  - name: "Default env name"
+    description: "By default, env name is derived from flag name, to upper and replace - to _ and uppercase, with optional prefix"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=simple"
+      - "--flag-simple-default"
+      - "simple"
+      - "--flag=with-dash"
+      - "--flag-with-dash-default"
+      - "with-dash"
+      - "--flag=with_underscore"
+      - "--flag-with_underscore-default"
+      - "with_underscore"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        SIMPLE='simple'
+        WITH_DASH='with-dash'
+        WITH_UNDERSCORE='with_underscore'
+      stderr: ""
+  - name: "Explicit env name"
+    description: "Using explicit env name for a flag, lowercase and dash is supported as well, but whether the name is a valid environment variable is up to the user."
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=lower"
+      - "--flag-lower-default"
+      - "lower"
+      - "--flag-lower-env-name=lower"
+      - "--flag=with-dash"
+      - "--flag-with-dash-default"
+      - "with-dash"
+      - "--flag-with-dash-env-name=with-dash"
+      - "--flag=with_underscore"
+      - "--flag-with_underscore-default"
+      - "with_underscore"
+      - "--flag-with_underscore-env-name=with_underscore"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        lower='lower'
+        with-dash='with-dash'
+        with_underscore='with_underscore'
+      stderr: ""
+  - name: "Using prefix"
+    description: "Using env-prefix to prefix all env var names, even those specified explicitly"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=simple"
+      - "--flag-simple-default"
+      - "simple"
+      - "--flag=with-dash"
+      - "--flag-with-dash-default"
+      - "with-dash"
+      - "--flag=with_underscore"
+      - "--flag-with_underscore-default"
+      - "with_underscore"
+      - "--flag=explicit"
+      - "--flag-explicit-default"
+      - "explicit"
+      - "--flag-explicit-env-name=EXPLICIT_NAME"
+      - "--env-prefix=MYAPP_"
+      - "--"
+      - "a"
+    expect:
+      exitCode: 0
+      stdout: |
+        MYAPP_EXPLICIT_NAME='explicit'
+        MYAPP_SIMPLE='simple'
+        MYAPP_WITH_DASH='with-dash'
+        MYAPP_WITH_UNDERSCORE='with_underscore'
+      stderr: ""

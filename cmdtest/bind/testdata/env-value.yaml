@@ -1,0 +1,146 @@
+tests:
+  - name: "sh: value with space"
+    description: "Value contains a space — shell-style export must quote or escape correctly"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=Alice Bob"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='Alice Bob'
+      stderr: ""
+  - name: "sh: value with single quote"
+    description: "Value contains a single quote character"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=O'Connor"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='O'\''Connor'
+      stderr: ""
+  - name: "sh: value with double quotes and dollar"
+    description: "Value contains double quotes and $ (dollar) which may be expanded by shells"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name"
+      - '"he said $HOME"'
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='"he said $HOME"'
+      stderr: ""
+  - name: "powershell: value with quotes and backtick/backslash"
+    description: "PowerShell escaping: contains double quotes and backtick/backslash"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=powershell"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name"
+      - '"He`s"\'
+    expect:
+      exitCode: 0
+      stdout: |
+        $Env:NAME = '"He`s"\'
+      stderr: ""
+  - name: "powershell: value with newline"
+    description: "Value contains an embedded newline character"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=powershell"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=first\nsecond"
+    expect:
+      exitCode: 0
+      stdout: |
+        $Env:NAME = 'first' + "`n" + 'second'
+      stderr: ""
+  - name: "cmd: value with percent and caret"
+    description: "Windows cmd.exe special chars % and ^ must be handled/escaped"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=cmd"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=%PATH%^&%"
+    expect:
+      exitCode: 0
+      stdout: |
+        set "NAME=%PATH%^&%"
+      stderr: ""
+  - name: "cmd: value with double quotes and backslash"
+    description: "cmd escaping with backslash and quotes"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=cmd"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=\"C:\\Program Files\\App\""
+    expect:
+      exitCode: 0
+      stdout: |
+        set "NAME=\"C:\Program Files\App\"
+      stderr: ""
+  - name: "cross-shell: unicode and emoji"
+    description: "Unicode characters should be preserved across all shell outputs"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=用户-\U0001F680"
+    expect:
+      exitCode: 0
+      stdout: "NAME='用户-\U0001F680'\n"
+      stderr: ""
+  - name: "cross-shell: value that looks like command injection"
+    description: "Ensure values containing ; | & ` $( ) are quoted/escaped appropriately"
+    cmd: "argonaut"
+    args:
+      - "bind"
+      - "--shell-type=sh"
+      - "--flag=name"
+      - "--flag-name-env-name=NAME"
+      - "--"
+      - "a"
+      - "--name=foo; rm -rf / | echo"
+    expect:
+      exitCode: 0
+      stdout: |
+        NAME='foo; rm -rf / | echo'
+      stderr: ""

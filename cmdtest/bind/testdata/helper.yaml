@@ -34,6 +34,7 @@ tests:
           -r, --allow-repeated-flags             Allow repeated flag names
           -a, --args-range string                The range of positional arguments, e.g. 1, >1, <=3, [1,3], (,5], [2,), (,) for unlimited
           -d, --debug                            Enable debug mode, print output to stderr as well
+          -e, --env-prefix string                The environment variable prefix for the command; all output env vars will be prefixed with it, even those whose names are specified using --flag-<name>-env-name
           -f, --flag strings                     Name For flag
               --flag-level-choices stringArray   Allowed choices for flag level
               --flag-level-default string        Default value for flag level

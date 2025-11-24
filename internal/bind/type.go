@@ -19,6 +19,7 @@ type CmdSpec struct {
 	ShortDesc   string
 	LongDesc    string
 	Interactive bool
+	EnvPrefix   string
 	Flags       map[string]*FlagSpec
 	Debug       bool
 	ArgsRange   IntRange
