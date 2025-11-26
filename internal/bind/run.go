@@ -106,7 +106,7 @@ func Run(cmd *cobra.Command, args []string) error {
 						if err != nil {
 							return err
 						}
-						if values, err := parseMultiValues(spec.MultiFormat, values, flagName); err != nil {
+						if values, err := ParseMultiValues(spec.MultiFormat, values, flagName); err != nil {
 							return err
 						} else {
 							spec.Value = values
@@ -372,7 +372,7 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 						if defaultValues, err := cmd.Flags().GetStringArray(defaultFlag); err != nil {
 							return err
 						} else {
-							if defaultValues, err := parseMultiValues(spec.MultiFormat, defaultValues, flagName); err != nil {
+							if defaultValues, err := ParseMultiValues(spec.MultiFormat, defaultValues, flagName); err != nil {
 								return err
 							} else {
 								spec.Default = defaultValues
@@ -391,7 +391,7 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 				if choicesValue, err := cmd.Flags().GetStringArray(choicesFlag); err != nil {
 					return err
 				} else {
-					if choicesValue, err := parseMultiValues(spec.MultiFormat, choicesValue, flagName); err != nil {
+					if choicesValue, err := ParseMultiValues(spec.MultiFormat, choicesValue, flagName); err != nil {
 						return err
 					} else {
 						spec.Choices = choicesValue

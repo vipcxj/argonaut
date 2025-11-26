@@ -206,12 +206,101 @@ func NewUnboundedIntRange() IntRange {
 	}
 }
 
+func NewSingleValueIntRange(n int) IntRange {
+	return IntRange{
+		Min:          n,
+		MinInclude:   true,
+		Max:          n,
+		MaxInclude:   true,
+		MinUnbounded: false,
+		MaxUnbounded: false,
+	}
+}
+
+func NewGreaterThanIntRange(n int) IntRange {
+	return IntRange{
+		Min:          n,
+		MinInclude:   false,
+		Max:          0,
+		MaxInclude:   false,
+		MinUnbounded: false,
+		MaxUnbounded: true,
+	}
+}
+
+func NewGreaterOrEqualThanIntRange(n int) IntRange {
+	return IntRange{
+		Min:          n,
+		MinInclude:   true,
+		Max:          0,
+		MaxInclude:   false,
+		MinUnbounded: false,
+		MaxUnbounded: true,
+	}
+}
+
+func NewLessThanIntRange(n int) IntRange {
+	return IntRange{
+		Min:          0,
+		MinInclude:   false,
+		Max:          n,
+		MaxInclude:   false,
+		MinUnbounded: true,
+		MaxUnbounded: false,
+	}
+}
+
+func NewLessOrEqualThanIntRange(n int) IntRange {
+	return IntRange{
+		Min:          0,
+		MinInclude:   false,
+		Max:          n,
+		MaxInclude:   true,
+		MinUnbounded: true,
+		MaxUnbounded: false,
+	}
+}
+
+func NewInclusiveIntRange(min int, max int) IntRange {
+	return IntRange{
+		Min:          min,
+		MinInclude:   true,
+		Max:          max,
+		MaxInclude:   true,
+		MinUnbounded: false,
+		MaxUnbounded: false,
+	}
+}
+
+func NewExclusiveIntRange(min int, max int) IntRange {
+	return IntRange{
+		Min:          min,
+		MinInclude:   false,
+		Max:          max,
+		MaxInclude:   false,
+		MinUnbounded: false,
+		MaxUnbounded: false,
+	}
+}
+
+func NewBoundedIntRange(min int, minInclude bool, max int, maxInclude bool) IntRange {
+	return IntRange{
+		Min:          min,
+		MinInclude:   minInclude,
+		Max:          max,
+		MaxInclude:   maxInclude,
+		MinUnbounded: false,
+		MaxUnbounded: false,
+	}
+}
+
 // IsValid returns whether the IntRange represents a non-empty, semantically valid interval.
 //
 // Rules:
 //   - If a side is unbounded it must be open (cannot include infinity).
 //   - If both sides are bounded and Min > Max then it's invalid.
 //   - If Min == Max then it's valid only when both ends are inclusive (represents a single point).
+//   - If Min and Max differ by 1 (e.g. (N,N+1)) then it's invalid if both ends are exclusive
 func (r IntRange) IsValid() bool {
 	// 无穷端必须为开区间
 	if r.MinUnbounded && r.MinInclude {
@@ -225,9 +314,13 @@ func (r IntRange) IsValid() bool {
 	if !r.MinUnbounded && !r.MaxUnbounded {
 		if r.Min > r.Max {
 			return false
-		}
-		if r.Min == r.Max {
+		} else if r.Min == r.Max {
 			return r.MinInclude && r.MaxInclude
+		} else if r.Max - r.Min == 1 {
+			// (N,N+1) 是空集
+			if (!r.MinInclude && !r.MaxInclude) {
+				return false
+			}
 		}
 	}
 
@@ -268,6 +361,198 @@ func (r IntRange) Contains(n int) bool {
 	}
 
 	return true
+}
+
+// Lowest returns the lowest integer included in the IntRange and a boolean indicating whether such a value exists.
+func (r IntRange) Lowest() (int, bool) {
+	if r.MinUnbounded {
+		return 0, false
+	}
+	if r.MinInclude {
+		return r.Min, true
+	}
+	return r.Min + 1, true
+}
+
+// Highest returns the highest integer included in the IntRange and a boolean indicating whether such a value exists.
+func (r IntRange) Highest() (int, bool) {
+	if r.MaxUnbounded {
+		return 0, false
+	}
+	if r.MaxInclude {
+		return r.Max, true
+	}
+	return r.Max - 1, true
+}
+
+// HasIntesect reports whether the IntRange r intersects with another IntRange.
+//
+// It returns true if there exists at least one integer that is included in both ranges.
+// If either range is invalid, it returns false.
+func (r IntRange) HasIntesect(other IntRange) bool {
+	if !r.IsValid() || !other.IsValid() {
+		return false
+	}
+
+	// 检查是否没有交集的情况
+	// r 在 other 左侧
+	if !r.MaxUnbounded && !other.MinUnbounded {
+		rMax, _ := r.Highest()
+		otherMin, _ := other.Lowest()
+		if rMax < otherMin {
+			return false
+		}
+	}
+	// r 在 other 右侧
+	if !r.MinUnbounded && !other.MaxUnbounded {
+		rMin, _ := r.Lowest()
+		otherMax, _ := other.Highest()
+		if rMin > otherMax {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (r IntRange) Intersect(other IntRange) (IntRange) {
+	// 计算交集的下界
+	var newMin int
+	var newMinInclude bool
+	var newMinUnbounded bool
+	if r.MinUnbounded && other.MinUnbounded {
+		newMinUnbounded = true
+	} else if r.MinUnbounded {
+		newMin = other.Min
+		newMinInclude = other.MinInclude
+		newMinUnbounded = false
+	} else if other.MinUnbounded {
+		newMin = r.Min
+		newMinInclude = r.MinInclude
+		newMinUnbounded = false
+	} else {
+		if r.Min > other.Min {
+			newMin = r.Min
+			newMinInclude = r.MinInclude
+		} else if r.Min < other.Min {
+			newMin = other.Min
+			newMinInclude = other.MinInclude
+		} else {
+			newMin = r.Min
+			newMinInclude = r.MinInclude
+		}
+	}
+
+	// 计算交集的上界
+	var newMax int
+	var newMaxInclude bool
+	var newMaxUnbounded bool
+	if r.MaxUnbounded && other.MaxUnbounded {
+		newMaxUnbounded = true
+	} else if r.MaxUnbounded {
+		newMax = other.Max
+		newMaxInclude = other.MaxInclude
+		newMaxUnbounded = false
+	} else if other.MaxUnbounded {
+		newMax = r.Max
+		newMaxInclude = r.MaxInclude
+		newMaxUnbounded = false
+	} else {
+		if r.Max < other.Max {
+			newMax = r.Max
+			newMaxInclude = r.MaxInclude
+		} else if r.Max > other.Max {
+			newMax = other.Max
+			newMaxInclude = other.MaxInclude
+		} else {
+			newMax = r.Max
+			newMaxInclude = r.MaxInclude
+		}
+	}
+
+	return IntRange{
+		Min:          newMin,
+		MinInclude:   newMinInclude,
+		MinUnbounded: newMinUnbounded,
+		Max:          newMax,
+		MaxInclude:   newMaxInclude,
+		MaxUnbounded: newMaxUnbounded,
+	}
+}
+
+
+// Substract returns the parts of IntRange r that are not covered by other.
+//
+// It returns a slice of IntRange representing the portions of r that do not overlap with other.
+// If there is no overlap, the result contains only r. If r is completely covered by other,
+// the result is an empty slice.
+func (r IntRange) Substract(other IntRange) []IntRange {
+	var results []IntRange
+
+	if !r.HasIntesect(other) {
+		results = append(results, r)
+		return results
+	}
+
+	// 计算左侧剩余部分
+	if !other.MinUnbounded {
+		rMin, bounded := r.Lowest()
+		otherMin, _ := other.Lowest()
+		if !bounded || rMin < otherMin {
+			newRange := IntRange{
+				Min:          r.Min,
+				MinInclude:   r.MinInclude,
+				MinUnbounded: r.MinUnbounded,
+				Max:          other.Min,
+				MaxInclude:   !other.MinInclude,
+				MaxUnbounded: false,
+			}
+			if newRange.IsValid() {
+				results = append(results, newRange)
+			}
+		}
+	}
+
+	// 计算右侧剩余部分
+	if !other.MaxUnbounded {
+		rMax, bounded := r.Highest()
+		otherMax, _ := other.Highest()
+		if !bounded || rMax > otherMax {
+			newRange := IntRange{
+				Min:          other.Max,
+				MinInclude:   !other.MaxInclude,
+				MinUnbounded: false,
+				Max:          r.Max,
+				MaxInclude:   r.MaxInclude,
+				MaxUnbounded: r.MaxUnbounded,
+			}
+			if newRange.IsValid() {
+				results = append(results, newRange)
+			}
+		}
+	}
+
+	return results
+}
+
+// TryMyBestToClosedInterval attempts to convert the IntRange into a closed interval representation.
+//
+// It returns a new IntRange that represents the same set of integers as the original range,
+// but expressed in a closed interval form where possible. If both bounds are present, it returns
+// an inclusive range [Min, Max]. If only one bound is present, it returns a half-infinite range
+// (e.g., [Min, +∞) or (-∞, Max]). If neither bound is present, it returns a completely unbounded range.
+func (r IntRange) TryMyBestToClosedInterval() IntRange {
+	lowest, ok1 := r.Lowest()
+	highest, ok2 := r.Highest()
+	if ok1 && ok2 {
+		return NewInclusiveIntRange(lowest, highest)
+	} else if ok1 {
+		return NewGreaterOrEqualThanIntRange(lowest)
+	} else if ok2 {
+		return NewLessOrEqualThanIntRange(highest)
+	} else {
+		return NewUnboundedIntRange()
+	}
 }
 
 // LessThan reports whether every integer in the IntRange r is strictly less than n.

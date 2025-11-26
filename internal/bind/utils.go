@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/spf13/pflag"
 )
 
 func splitAndTrim(s string, seps string) []string {
@@ -19,7 +21,7 @@ func splitAndTrim(s string, seps string) []string {
 	return parts
 }
 
-func parseMultiValues(formats []string, rawValues []string, flag string) ([]string, error) {
+func ParseMultiValues(formats []string, rawValues []string, flag string) ([]string, error) {
 	if rawValues == nil {
 		return nil, nil
 	}
@@ -79,7 +81,7 @@ func parseMultiValues(formats []string, rawValues []string, flag string) ([]stri
 	}
 }
 
-func outputMultiValues(formats []string, values []string) (string, error) {
+func OutputMultiValues(formats []string, values []string) (string, error) {
 	isJson := false
 	if checkInStringSlice("json", formats) {
 		if len(formats) > 1 {
@@ -118,4 +120,52 @@ func outputMultiValues(formats []string, values []string) (string, error) {
 		}
 		return strings.Join(values, sep), nil
 	}
+}
+
+func CollectUnknownFlags(args []string, knownFlags pflag.FlagSet) map[string]string {
+	unknownFlags := make(map[string]string)
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		if strings.HasPrefix(arg, "--") {
+			if arg == "--" {
+				break
+			}
+			eqIndex := strings.Index(arg, "=")
+			var flagName, flagValue string
+			if eqIndex != -1 {
+				flagName = arg[2:eqIndex]
+				flagValue = arg[eqIndex+1:]
+			} else {
+				flagName = arg[2:]
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+					flagValue = args[i+1]
+					i++
+				} else {
+					flagValue = ""
+				}
+			}
+			if knownFlags.Lookup(flagName) == nil {
+				unknownFlags[flagName] = flagValue
+			}
+		} else if strings.HasPrefix(arg, "-") && len(arg) > 1 {
+			flagName := arg[1:2]
+			var flagValue string
+			if len(arg) > 2 {
+				flagValue = arg[2:]
+			} else {
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+					flagValue = args[i+1]
+					i++
+				} else {
+					flagValue = ""
+				}
+			}
+			if knownFlags.Lookup(flagName) == nil {
+				unknownFlags[flagName] = flagValue
+			}
+		}
+		i++
+	}
+	return unknownFlags
 }

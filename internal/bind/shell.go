@@ -146,7 +146,7 @@ func exportEnvVarCmdLike(spec *CmdSpec) (string, error) {
 		// env name: prefer explicit, otherwise normalize flag key
 		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
-		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
+		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
@@ -188,7 +188,7 @@ func exportEnvVarLinuxLike(spec *CmdSpec) (string, error) {
 
 		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
-		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
+		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
@@ -234,7 +234,7 @@ func exportEnvVarPowershellLike(spec *CmdSpec) (string, error) {
 
 		varName := calcEnvName(fs, key, spec.EnvPrefix)
 
-		val, err := outputMultiValues(fs.MultiFormat, fs.Value)
+		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
 		if err != nil {
 			return "", fmt.Errorf("flag %s: %w", key, err)
 		}
