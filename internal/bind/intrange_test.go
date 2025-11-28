@@ -46,7 +46,7 @@ func TestRange_IsValid_DirectCases(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if got := tc.r.IsValid(); got != tc.exp {
+		if got := tc.r.IsNotEmpty(); got != tc.exp {
 			t.Fatalf("%s: IsValid() = %v, want %v (range=%+v)", tc.name, got, tc.exp, tc.r)
 		}
 	}
@@ -321,168 +321,168 @@ func TestRange_ComparisonHelpers(t *testing.T) {
 }
 
 func TestIntRange_Properties(t *testing.T) {
-    cases := []struct {
-        name         string
-        r            IntRange
-        single       bool
-        singleVal    int
-        isLess       bool
-        isLessEq     bool
-        isGreater    bool
-        isGreaterEq  bool
-        lowerBounded bool
-        upperBounded bool
-        unbounded    bool
-    }{
-        {
-            "single_value",
-            IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
-            true, 5, false, false, false, false, true, true, false,
-        },
-        {
-            "single_value_not_both_inclusive",
-            IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
-            false, 0, false, false, false, false, true, true, false,
-        },
-        {
-            "less_than_open_right",
-            IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: false, MaxUnbounded: false},
-            false, 0, true, false, false, false, false, true, false,
-        },
-        {
-            "less_or_equal",
-            IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
-            false, 0, false, true, false, false, false, true, false,
-        },
-        {
-            "greater_than_open_left",
-            IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
-            false, 0, false, false, true, false, true, false, false,
-        },
-        {
-            "greater_or_equal_left",
-            IntRange{Min: 3, MinInclude: true, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
-            false, 0, false, false, false, true, true, false, false,
-        },
-        {
-            "both_unbounded",
-            IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
-            false, 0, false, false, false, false, false, false, true,
-        },
-        {
-            "finite_bounded_interval",
-            IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
-            false, 0, false, false, false, false, true, true, false,
-        },
-    }
+	cases := []struct {
+		name         string
+		r            IntRange
+		single       bool
+		singleVal    int
+		isLess       bool
+		isLessEq     bool
+		isGreater    bool
+		isGreaterEq  bool
+		lowerBounded bool
+		upperBounded bool
+		unbounded    bool
+	}{
+		{
+			"single_value",
+			IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
+			true, 5, false, false, false, false, true, true, false,
+		},
+		{
+			"single_value_not_both_inclusive",
+			IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
+			false, 0, false, false, false, false, true, true, false,
+		},
+		{
+			"less_than_open_right",
+			IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: false, MaxUnbounded: false},
+			false, 0, true, false, false, false, false, true, false,
+		},
+		{
+			"less_or_equal",
+			IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
+			false, 0, false, true, false, false, false, true, false,
+		},
+		{
+			"greater_than_open_left",
+			IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
+			false, 0, false, false, true, false, true, false, false,
+		},
+		{
+			"greater_or_equal_left",
+			IntRange{Min: 3, MinInclude: true, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
+			false, 0, false, false, false, true, true, false, false,
+		},
+		{
+			"both_unbounded",
+			IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
+			false, 0, false, false, false, false, false, false, true,
+		},
+		{
+			"finite_bounded_interval",
+			IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
+			false, 0, false, false, false, false, true, true, false,
+		},
+	}
 
-    for _, tc := range cases {
-        if got := tc.r.IsSingleValue(); got != tc.single {
-            t.Fatalf("%s: IsSingleValue() = %v, want %v (range=%+v)", tc.name, got, tc.single, tc.r)
-        }
-        if v, ok := tc.r.SingleValue(); ok != tc.single || (ok && v != tc.singleVal) {
-            t.Fatalf("%s: SingleValue() = (%d,%v), want (%d,%v) (range=%+v)", tc.name, v, ok, tc.singleVal, tc.single, tc.r)
-        }
-        if got := tc.r.IsLessThan(); got != tc.isLess {
-            t.Fatalf("%s: IsLessThan() = %v, want %v (range=%+v)", tc.name, got, tc.isLess, tc.r)
-        }
-        if got := tc.r.IsLessOrEqualThan(); got != tc.isLessEq {
-            t.Fatalf("%s: IsLessOrEqualThan() = %v, want %v (range=%+v)", tc.name, got, tc.isLessEq, tc.r)
-        }
-        if got := tc.r.IsGreaterThan(); got != tc.isGreater {
-            t.Fatalf("%s: IsGreaterThan() = %v, want %v (range=%+v)", tc.name, got, tc.isGreater, tc.r)
-        }
-        if got := tc.r.IsGreaterOrEqualThan(); got != tc.isGreaterEq {
-            t.Fatalf("%s: IsGreaterOrEqualThan() = %v, want %v (range=%+v)", tc.name, got, tc.isGreaterEq, tc.r)
-        }
-        if got := tc.r.IsLowerBounded(); got != tc.lowerBounded {
-            t.Fatalf("%s: IsLowerBounded() = %v, want %v (range=%+v)", tc.name, got, tc.lowerBounded, tc.r)
-        }
-        if got := tc.r.IsUpperBounded(); got != tc.upperBounded {
-            t.Fatalf("%s: IsUpperBounded() = %v, want %v (range=%+v)", tc.name, got, tc.upperBounded, tc.r)
-        }
-        if got := tc.r.IsUnbounded(); got != tc.unbounded {
-            t.Fatalf("%s: IsUnbounded() = %v, want %v (range=%+v)", tc.name, got, tc.unbounded, tc.r)
-        }
-    }
+	for _, tc := range cases {
+		if got := tc.r.IsSingleValue(); got != tc.single {
+			t.Fatalf("%s: IsSingleValue() = %v, want %v (range=%+v)", tc.name, got, tc.single, tc.r)
+		}
+		if v, ok := tc.r.SingleValue(); ok != tc.single || (ok && v != tc.singleVal) {
+			t.Fatalf("%s: SingleValue() = (%d,%v), want (%d,%v) (range=%+v)", tc.name, v, ok, tc.singleVal, tc.single, tc.r)
+		}
+		if got := tc.r.IsLessThan(); got != tc.isLess {
+			t.Fatalf("%s: IsLessThan() = %v, want %v (range=%+v)", tc.name, got, tc.isLess, tc.r)
+		}
+		if got := tc.r.IsLessOrEqualThan(); got != tc.isLessEq {
+			t.Fatalf("%s: IsLessOrEqualThan() = %v, want %v (range=%+v)", tc.name, got, tc.isLessEq, tc.r)
+		}
+		if got := tc.r.IsGreaterThan(); got != tc.isGreater {
+			t.Fatalf("%s: IsGreaterThan() = %v, want %v (range=%+v)", tc.name, got, tc.isGreater, tc.r)
+		}
+		if got := tc.r.IsGreaterOrEqualThan(); got != tc.isGreaterEq {
+			t.Fatalf("%s: IsGreaterOrEqualThan() = %v, want %v (range=%+v)", tc.name, got, tc.isGreaterEq, tc.r)
+		}
+		if got := tc.r.IsLowerBounded(); got != tc.lowerBounded {
+			t.Fatalf("%s: IsLowerBounded() = %v, want %v (range=%+v)", tc.name, got, tc.lowerBounded, tc.r)
+		}
+		if got := tc.r.IsUpperBounded(); got != tc.upperBounded {
+			t.Fatalf("%s: IsUpperBounded() = %v, want %v (range=%+v)", tc.name, got, tc.upperBounded, tc.r)
+		}
+		if got := tc.r.IsUnbounded(); got != tc.unbounded {
+			t.Fatalf("%s: IsUnbounded() = %v, want %v (range=%+v)", tc.name, got, tc.unbounded, tc.r)
+		}
+	}
 }
 
 func TestIntRange_String(t *testing.T) {
-    cases := []struct {
-        name string
-        r    IntRange
-        exp  string
-    }{
-        {
-            "single integer",
-            IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
-            "5",
-        },
-        {
-            "left infinite, right inclusive",
-            IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
-            "<=10",
-        },
-        {
-            "right infinite, left exclusive",
-            IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
-            ">3",
-        },
-        {
-            "finite interval",
-            IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
-            "[1,4)",
-        },
-        {
-            "both infinite open",
-            IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
-            "(-∞,∞)",
-        },
-    }
+	cases := []struct {
+		name string
+		r    IntRange
+		exp  string
+	}{
+		{
+			"single integer",
+			IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
+			"5",
+		},
+		{
+			"left infinite, right inclusive",
+			IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
+			"<=10",
+		},
+		{
+			"right infinite, left exclusive",
+			IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
+			">3",
+		},
+		{
+			"finite interval",
+			IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
+			"[1,4)",
+		},
+		{
+			"both infinite open",
+			IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
+			"(-∞,∞)",
+		},
+	}
 
-    for _, tc := range cases {
-        if got := tc.r.String(); got != tc.exp {
-            t.Fatalf("%s: String() = %q, want %q (range=%+v)", tc.name, got, tc.exp, tc.r)
-        }
-    }
+	for _, tc := range cases {
+		if got := tc.r.String(); got != tc.exp {
+			t.Fatalf("%s: String() = %q, want %q (range=%+v)", tc.name, got, tc.exp, tc.r)
+		}
+	}
 }
 
 func TestIntRange_ToParseableString(t *testing.T) {
-    cases := []struct {
-        name string
-        r    IntRange
-        exp  string
-    }{
-        {
-            "single integer parseable",
-            IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
-            "5",
-        },
-        {
-            "left infinite parseable (operator form)",
-            IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
-            "<=10",
-        },
-        {
-            "right infinite parseable (operator form)",
-            IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
-            ">3",
-        },
-        {
-            "finite interval parseable",
-            IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
-            "[1,4)",
-        },
-        {
-            "both infinite parseable (empty sides)",
-            IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
-            "(,)",
-        },
-    }
+	cases := []struct {
+		name string
+		r    IntRange
+		exp  string
+	}{
+		{
+			"single integer parseable",
+			IntRange{Min: 5, MinInclude: true, Max: 5, MaxInclude: true, MinUnbounded: false, MaxUnbounded: false},
+			"5",
+		},
+		{
+			"left infinite parseable (operator form)",
+			IntRange{MinUnbounded: true, MinInclude: false, Max: 10, MaxInclude: true, MaxUnbounded: false},
+			"<=10",
+		},
+		{
+			"right infinite parseable (operator form)",
+			IntRange{Min: 3, MinInclude: false, MinUnbounded: false, MaxUnbounded: true, MaxInclude: false},
+			">3",
+		},
+		{
+			"finite interval parseable",
+			IntRange{Min: 1, MinInclude: true, Max: 4, MaxInclude: false, MinUnbounded: false, MaxUnbounded: false},
+			"[1,4)",
+		},
+		{
+			"both infinite parseable (empty sides)",
+			IntRange{MinUnbounded: true, MinInclude: false, MaxUnbounded: true, MaxInclude: false},
+			"(,)",
+		},
+	}
 
-    for _, tc := range cases {
-        if got := tc.r.ToParseableString(); got != tc.exp {
-            t.Fatalf("%s: ToParseableString() = %q, want %q (range=%+v)", tc.name, got, tc.exp, tc.r)
-        }
-    }
+	for _, tc := range cases {
+		if got := tc.r.ToParseableString(); got != tc.exp {
+			t.Fatalf("%s: ToParseableString() = %q, want %q (range=%+v)", tc.name, got, tc.exp, tc.r)
+		}
+	}
 }

@@ -2,16 +2,17 @@
 package bind
 
 type FlagSpec struct {
-	ShortName   string
-	Default     []string
-	Choices     []string
-	Required    bool
-	Multi       bool
-	MultiFormat []string
-	Helper      string
-	EnvName     string
-	Export      bool
-	Value       []string
+	ShortName     string
+	Default       []string
+	NoOptDefValue string
+	Choices       []string
+	Required      bool
+	Multi         bool
+	MultiFormat   []string
+	Helper        string
+	EnvName       string
+	Export        bool
+	Value         []string
 }
 
 type CmdSpec struct {

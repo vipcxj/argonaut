@@ -154,6 +154,9 @@ func Run(cmd *cobra.Command, args []string) error {
 		} else {
 			realCmd.Flags().StringArrayP(flagName, spec.ShortName, spec.Default, spec.Helper)
 		}
+		if spec.NoOptDefValue != "" {
+			realCmd.Flags().Lookup(flagName).NoOptDefVal = spec.NoOptDefValue
+		}
 		if len(spec.Choices) > 0 {
 			realCmd.RegisterFlagCompletionFunc(flagName, func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
 				var completions []cobra.Completion
@@ -342,6 +345,7 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 				}
 				shortFlag := fmt.Sprintf("flag-%s-short", flagName)
 				defaultFlag := fmt.Sprintf("flag-%s-default", flagName)
+				emptyValueFlag := fmt.Sprintf("flag-%s-empty-value", flagName)
 				choicesFlag := fmt.Sprintf("flag-%s-choices", flagName)
 				requiredFlag := fmt.Sprintf("flag-%s-required", flagName)
 				helperFlag := fmt.Sprintf("flag-%s-helper", flagName)
@@ -388,6 +392,11 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 				} else {
 					spec.Default = nil
 				}
+				emptyValue, err := cmd.Flags().GetString(emptyValueFlag)
+				if err != nil {
+					return err
+				}
+				spec.NoOptDefValue = emptyValue
 				if choicesValue, err := cmd.Flags().GetStringArray(choicesFlag); err != nil {
 					return err
 				} else {
@@ -441,10 +450,22 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 		)
 		defaultFlag := fmt.Sprintf("flag-%s-default", flagName)
 		if spec.Multi {
-			bindCmd.Flags().StringArrayP(defaultFlag, "", []string{}, fmt.Sprintf("Default values for flag %s", flagName))
+			bindCmd.Flags().StringArrayP(defaultFlag, "", []string{}, fmt.Sprintf(
+				"Default values for flag %s. Note: defaults apply only when the flag is omitted; if the flag is present but given no value (e.g. '--%s'), an empty value is used instead of the default.",
+				flagName, flagName,
+			))
 		} else {
-			bindCmd.Flags().StringP(defaultFlag, "", "", fmt.Sprintf("Default value for flag %s", flagName))
+			bindCmd.Flags().StringP(defaultFlag, "", "", fmt.Sprintf(
+				"Default value for flag %s. Note: default apply only when the flag is omitted; if the flag is present but given no value (e.g. '--%s'), an empty value is used instead of the default.",
+				flagName, flagName,
+			))
 		}
+		emptyValueFlag := fmt.Sprintf("flag-%s-empty-value", flagName)
+		bindCmd.Flags().StringP(emptyValueFlag, "", "", fmt.Sprintf(
+			"The value to use when flag %s is present but given no explicit value (e.g. '--%s'). "+
+				"Note: this applies only when the flag is provided without a value; it does not act as the default when the flag is omitted.",
+			flagName, flagName,
+		))
 		choicesFlag := fmt.Sprintf("flag-%s-choices", flagName)
 		bindCmd.Flags().StringArrayP(choicesFlag, "", []string{}, fmt.Sprintf("Allowed choices for flag %s", flagName))
 		requiredFlag := fmt.Sprintf("flag-%s-required", flagName)

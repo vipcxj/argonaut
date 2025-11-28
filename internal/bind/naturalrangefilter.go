@@ -197,7 +197,7 @@ func (f NaturalRangeFilter) IsAllNatural() bool {
 		for _, leftRange := range *srcCollection {
 			newLeftRanges := leftRange.Substract(r)
 			for _, newLeftRange := range newLeftRanges {
-				if newLeftRange.IsValid() {
+				if newLeftRange.IsNotEmpty() {
 					*tgtCollection = append(*tgtCollection, newLeftRange)
 				}
 			}
@@ -229,7 +229,7 @@ func (f NaturalRangeFilter) Normalize() []IntRange {
 			n.MinInclude = true
 			n.Min = 0
 		}
-		if n.IsValid() && (n.MaxUnbounded || n.Max >= 0) {
+		if n.IsNotEmpty() && (n.MaxUnbounded || n.Max >= 0) {
 			valids = append(valids, n)
 		}
 	}
@@ -300,7 +300,7 @@ func (f NaturalRangeFilter) Normalize() []IntRange {
 		}
 
 		// 有界：若 last.max + 1 >= cur.min 则合并（整数相邻也合并）
-		if last.max + 1 >= cur.min {
+		if last.max+1 >= cur.min {
 			last.max = cur.max
 			merged[len(merged)-1] = last
 			continue

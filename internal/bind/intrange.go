@@ -29,13 +29,14 @@ type IntRange struct {
 // Rules:
 //   - If a side is unbounded, that side must be an open interval (use '(' or ')' not '[' or ']').
 //   - The parameter emptyAsUnbounded controls how an empty input string is handled:
-//       * If emptyAsUnbounded == true and value == "", this function returns a completely unbounded range
-//         (equivalent to "(,)" / NewUnboundedIntRange()).
-//       * If emptyAsUnbounded == false and value == "", an error is returned.
+//   - If emptyAsUnbounded == true and value == "", this function returns a completely unbounded range
+//     (equivalent to "(,)" / NewUnboundedIntRange()).
+//   - If emptyAsUnbounded == false and value == "", an error is returned.
 //
 // Examples:
-//   NewIntRange("", true)  -> unbounded range
-//   NewIntRange("", false) -> error
+//
+//	NewIntRange("", true)  -> unbounded range
+//	NewIntRange("", false) -> error
 func NewIntRange(value string, emptyAsUnbounded bool) (IntRange, error) {
 
 	if value == "" {
@@ -294,14 +295,14 @@ func NewBoundedIntRange(min int, minInclude bool, max int, maxInclude bool) IntR
 	}
 }
 
-// IsValid returns whether the IntRange represents a non-empty, semantically valid interval.
+// IsNotEmpty returns whether the IntRange represents a non-empty, semantically valid interval.
 //
 // Rules:
 //   - If a side is unbounded it must be open (cannot include infinity).
 //   - If both sides are bounded and Min > Max then it's invalid.
 //   - If Min == Max then it's valid only when both ends are inclusive (represents a single point).
 //   - If Min and Max differ by 1 (e.g. (N,N+1)) then it's invalid if both ends are exclusive
-func (r IntRange) IsValid() bool {
+func (r IntRange) IsNotEmpty() bool {
 	// 无穷端必须为开区间
 	if r.MinUnbounded && r.MinInclude {
 		return false
@@ -316,9 +317,9 @@ func (r IntRange) IsValid() bool {
 			return false
 		} else if r.Min == r.Max {
 			return r.MinInclude && r.MaxInclude
-		} else if r.Max - r.Min == 1 {
+		} else if r.Max-r.Min == 1 {
 			// (N,N+1) 是空集
-			if (!r.MinInclude && !r.MaxInclude) {
+			if !r.MinInclude && !r.MaxInclude {
 				return false
 			}
 		}
@@ -330,7 +331,7 @@ func (r IntRange) IsValid() bool {
 // Contains checks whether the given integer n is included in the IntRange.
 // Returns false if the range itself is invalid or n is outside the interval.
 func (r IntRange) Contains(n int) bool {
-	if !r.IsValid() {
+	if !r.IsNotEmpty() {
 		return false
 	}
 
@@ -390,7 +391,7 @@ func (r IntRange) Highest() (int, bool) {
 // It returns true if there exists at least one integer that is included in both ranges.
 // If either range is invalid, it returns false.
 func (r IntRange) HasIntesect(other IntRange) bool {
-	if !r.IsValid() || !other.IsValid() {
+	if !r.IsNotEmpty() || !other.IsNotEmpty() {
 		return false
 	}
 
@@ -415,7 +416,7 @@ func (r IntRange) HasIntesect(other IntRange) bool {
 	return true
 }
 
-func (r IntRange) Intersect(other IntRange) (IntRange) {
+func (r IntRange) Intersect(other IntRange) IntRange {
 	// 计算交集的下界
 	var newMin int
 	var newMinInclude bool
@@ -480,7 +481,6 @@ func (r IntRange) Intersect(other IntRange) (IntRange) {
 	}
 }
 
-
 // Substract returns the parts of IntRange r that are not covered by other.
 //
 // It returns a slice of IntRange representing the portions of r that do not overlap with other.
@@ -507,7 +507,7 @@ func (r IntRange) Substract(other IntRange) []IntRange {
 				MaxInclude:   !other.MinInclude,
 				MaxUnbounded: false,
 			}
-			if newRange.IsValid() {
+			if newRange.IsNotEmpty() {
 				results = append(results, newRange)
 			}
 		}
@@ -526,7 +526,7 @@ func (r IntRange) Substract(other IntRange) []IntRange {
 				MaxInclude:   r.MaxInclude,
 				MaxUnbounded: r.MaxUnbounded,
 			}
-			if newRange.IsValid() {
+			if newRange.IsNotEmpty() {
 				results = append(results, newRange)
 			}
 		}
@@ -562,7 +562,7 @@ func (r IntRange) TryMyBestToClosedInterval() IntRange {
 // is strictly less than n. If the range is invalid or the upper bound is unbounded,
 // LessThan returns false.
 func (r IntRange) LessThan(n int) bool {
-	if !r.IsValid() {
+	if !r.IsNotEmpty() {
 		return false
 	}
 	// 如果没有上界，则不可能全部小于 n
@@ -583,7 +583,7 @@ func (r IntRange) LessThan(n int) bool {
 //  2. If MaxInclude is true the effective upper bound is r.Max; otherwise the effective upper bound is r.Max - 1.
 //  3. The function compares that effective upper bound to n and returns true when the bound is <= n.
 func (r IntRange) LessOrEqualThan(n int) bool {
-	if !r.IsValid() {
+	if !r.IsNotEmpty() {
 		return false
 	}
 	if r.MaxUnbounded {
@@ -604,7 +604,7 @@ func (r IntRange) LessOrEqualThan(n int) bool {
 // as the smallest allowed integer; otherwise it uses Min. The function returns true
 // only if that smallest allowed integer is greater than n.
 func (r IntRange) GreaterThan(n int) bool {
-	if !r.IsValid() {
+	if !r.IsNotEmpty() {
 		return false
 	}
 	// 如果没有下界，则不可能全部大于 n
@@ -625,7 +625,7 @@ func (r IntRange) GreaterThan(n int) bool {
 // (MinInclude == false) the effective minimum is treated as Min+1. This check only considers the lower
 // bound (i.e. whether the entire finite range is at or above n) and does not examine the upper bound.
 func (r IntRange) GreaterOrEqualThan(n int) bool {
-	if !r.IsValid() {
+	if !r.IsNotEmpty() {
 		return false
 	}
 	if r.MinUnbounded {
