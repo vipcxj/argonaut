@@ -63,11 +63,12 @@ tests:
           -r, --allow-repeated-flags            Allow repeated flag names
           -a, --args-range string               The range of positional arguments, e.g. 1, >1, <=3, [1,3], (,5], [2,), (,) for unlimited
           -d, --debug                           Enable debug mode, print output to stderr as well
-          -e, --env-prefix string               The environment variable prefix for the command; all output env vars will be prefixed with it, even those whose names are specified using --flag-<name>-env-name
+          -e, --env-prefix string               The environment variable prefix for the command; all output env vars will be prefixed with it, except those whose names are specified using --flag-<name>-env-name
           -f, --flag strings                    Name For flag
               --flag-mode-choices stringArray   Allowed choices for flag mode
-              --flag-mode-default string        Default value for flag mode
-              --flag-mode-env-name string       Environment variable name for flag mode, default is upper-case with '-' replaced by '_'
+              --flag-mode-default string        Default value for flag mode. Note: default apply only when the flag is omitted; if the flag is present but given no value (e.g. '--mode'), an empty value is used instead of the default.
+              --flag-mode-empty-value string    The value to use when flag mode is present but given no explicit value (e.g. '--mode'). Note: this applies only when the flag is provided without a value; it does not act as the default when the flag is omitted.
+              --flag-mode-env-name string       Environment variable name for flag mode, default is upper-case with '-' replaced by '_', not effected by --env-prefix
               --flag-mode-export                Whether flag mode should be exported as environment variable
               --flag-mode-helper string         Helper text for flag mode
               --flag-mode-multi                 Whether flag mode is multi-valued
@@ -75,8 +76,10 @@ tests:
               --flag-mode-required              Whether flag mode is required
               --flag-mode-short string          Short name for flag mode
           -h, --help                            help for bind
+              --help-export                     Whether the help environment variable should be exported
+              --help-var string                 The environment variable name to indicate help request, not effected by --env-prefix (default "IS_HELP")
           -l, --long string                     The long description of the command
           -n, --name string                     The name of the command
-              --shell-type string               The shell type for output, one of: auto, sh, powershell, cmd (default "auto")
+              --shell-type string               The shell type for output, allowed values: auto, sh, powershell, cmd (default "auto")
           -s, --short string                    The short description of the command
 

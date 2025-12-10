@@ -1,4 +1,5 @@
 //go:generate go run github.com/dmarkham/enumer -type=ShellType -trimprefix=ShellType -transform=kebab
+//go:generate go run github.com/dmarkham/enumer -type=HelpSinkType -trimprefix=HelpSink -transform=kebab
 package bind
 
 type FlagSpec struct {
@@ -27,9 +28,10 @@ type CmdSpec struct {
 	ArgsChoices [][]string
 	ArgsValue   []string
 	ShellType   ShellType
+	HelpVar     string
+	HelpExport  bool
 }
 
-// ENUM(auto, sh, powershell, cmd)
 type ShellType int
 
 const (

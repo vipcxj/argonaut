@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -130,7 +131,7 @@ func Run(cmd *cobra.Command, args []string) error {
 					}
 				}
 			}
-			output, err := exportEnvVar(spec)
+			output, err := exportEnvVars(spec)
 			if err != nil {
 				return err
 			}
@@ -141,6 +142,33 @@ func Run(cmd *cobra.Command, args []string) error {
 			return nil
 		},
 	}
+
+	realCmd.SetHelpFunc(func(c *cobra.Command, s []string) {
+		helpOut := os.Stderr
+		helpVarOut := os.Stdout
+		usage := c.Long
+		if usage == "" {
+			usage = c.Short
+		}
+		usage = strings.TrimRightFunc(usage, unicode.IsSpace)
+		if usage != "" {
+			fmt.Fprintln(helpOut, usage)
+			fmt.Fprintln(helpOut)
+		}
+		if c.Runnable() || c.HasSubCommands() {
+			fmt.Fprint(helpOut, c.UsageString())
+		}
+		if shellType, err := decideShellType(spec.ShellType); err != nil {
+			fmt.Fprintf(helpOut, "Error deciding shell type: %v\n", err)
+		} else {
+			exportLine, err := exportEnvVar(shellType, spec.HelpVar, "true", spec.HelpExport)
+			if err != nil {
+				fmt.Fprintf(helpOut, "Error generating help env var export: %v\n", err)
+			} else {
+				fmt.Fprint(helpVarOut, exportLine)
+			}
+		}
+	})
 
 	for flagName, spec := range spec.Flags {
 		if !spec.Multi {
@@ -338,6 +366,16 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 			} else {
 				specs.ArgsRange = argsRange
 			}
+			helpVar, err := cmd.Flags().GetString("help-var")
+			if err != nil {
+				return err
+			}
+			specs.HelpVar = helpVar
+			helpExport, err := cmd.Flags().GetBool("help-export")
+			if err != nil {
+				return err
+			}
+			specs.HelpExport = helpExport
 			for flagName, spec := range specs.Flags {
 				err = checkMultiFormat(spec.MultiFormat, flagName)
 				if err != nil {
@@ -430,11 +468,13 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 	bindCmd.Flags().StringP("short", "s", "", "The short description of the command")
 	bindCmd.Flags().StringP("long", "l", "", "The long description of the command")
 	// bindCmd.Flags().BoolP("interactive", "i", false, "Enable interactive mode for user prompts")
-	bindCmd.Flags().StringP("env-prefix", "e", "", "The environment variable prefix for the command; all output env vars will be prefixed with it, even those whose names are specified using --flag-<name>-env-name")
+	bindCmd.Flags().StringP("env-prefix", "e", "", "The environment variable prefix for the command; all output env vars will be prefixed with it, except those whose names are specified using --flag-<name>-env-name")
 	bindCmd.Flags().BoolP("allow-repeated-flags", "r", false, "Allow repeated flag names")
 	bindCmd.Flags().BoolP("debug", "d", false, "Enable debug mode, print output to stderr as well")
-	bindCmd.Flags().StringP("shell-type", "", ShellTypeAuto.String(), fmt.Sprintf("The shell type for output, one of: %s", strings.Join(ShellTypeStrings(), ", ")))
+	bindCmd.Flags().StringP("shell-type", "", ShellTypeAuto.String(), fmt.Sprintf("The shell type for output, allowed values: %s", strings.Join(ShellTypeStrings(), ", ")))
 	bindCmd.Flags().StringP("args-range", "a", "", "The range of positional arguments, e.g. 1, >1, <=3, [1,3], (,5], [2,), (,) for unlimited")
+	bindCmd.Flags().StringP("help-var", "", "IS_HELP", "The environment variable name to indicate help request, not effected by --env-prefix")
+	bindCmd.Flags().BoolP("help-export", "", false, "Whether the help environment variable should be exported")
 	bindCmd.Flags().StringSliceP("flag", "f", []string{}, "Name For flag")
 	for flagName, spec := range specs.Flags {
 		shortFlag := fmt.Sprintf("flag-%s-short", flagName)
@@ -471,7 +511,7 @@ func collectSpecs(cmd *cobra.Command, bindArgs []string, userArgs []string) (*Cm
 		requiredFlag := fmt.Sprintf("flag-%s-required", flagName)
 		bindCmd.Flags().BoolP(requiredFlag, "", false, fmt.Sprintf("Whether flag %s is required", flagName))
 		envFlag := fmt.Sprintf("flag-%s-env-name", flagName)
-		bindCmd.Flags().StringP(envFlag, "", "", fmt.Sprintf("Environment variable name for flag %s, default is upper-case with '-' replaced by '_'", flagName))
+		bindCmd.Flags().StringP(envFlag, "", "", fmt.Sprintf("Environment variable name for flag %s, default is upper-case with '-' replaced by '_', not effected by --env-prefix", flagName))
 		exportFlag := fmt.Sprintf("flag-%s-export", flagName)
 		bindCmd.Flags().BoolP(exportFlag, "", false, fmt.Sprintf("Whether flag %s should be exported as environment variable", flagName))
 	}

@@ -51,7 +51,7 @@ tests:
         with_underscore='with_underscore'
       stderr: ""
   - name: "Using prefix"
-    description: "Using env-prefix to prefix all env var names, even those specified explicitly"
+    description: "Using env-prefix to prefix all env var names, except those specified explicitly"
     cmd: "argonaut"
     args:
       - "bind"
@@ -75,7 +75,7 @@ tests:
     expect:
       exitCode: 0
       stdout: |
-        MYAPP_EXPLICIT_NAME='explicit'
+        EXPLICIT_NAME='explicit'
         MYAPP_SIMPLE='simple'
         MYAPP_WITH_DASH='with-dash'
         MYAPP_WITH_UNDERSCORE='with_underscore'

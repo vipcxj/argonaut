@@ -13,5 +13,5 @@ func TestCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 	ts.Register("argonaut", cmd.Execute)
-	ts.Run(t, true)
+	ts.Run(t, false)
 }

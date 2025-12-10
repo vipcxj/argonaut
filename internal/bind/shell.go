@@ -10,11 +10,12 @@ import (
 	"github.com/shirou/gopsutil/v4/process"
 )
 
-func calcEnvName(fs *FlagSpec, key string, prefix string) string {
-	varName := fs.EnvName
-	if varName == "" {
-		varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+func calcEnvName(key string, default_value string, prefix string) string {
+	varName := default_value
+	if varName != "" {
+		return varName
 	}
+	varName = strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
 	if prefix != "" {
 		varName = prefix + varName
 	}
@@ -124,163 +125,131 @@ func buildCmdLiteral(s string) string {
 	return strings.Join(out, "")
 }
 
-func exportEnvVarCmdLike(spec *CmdSpec) (string, error) {
-	if spec == nil || len(spec.Flags) == 0 {
-		return "", nil
+func exportEnvVarCmdLike(varName string, val string, export bool) string {
+	// buildCmdLiteral 保留原始换行并为 cmd 平台生成分段字面量
+	escaped := buildCmdLiteral(val)
+
+	if export {
+		// persistent for Windows cmd: use setx
+		// setx VAR "value"
+		return fmt.Sprintf("setx %s \"%s\"", varName, escaped)
+	} else {
+		// session assignment: wrap assignment in set "VAR=value"
+		// remove outer quotes if any so set "VAR=value" remains valid
+		return fmt.Sprintf("set \"%s=%s\"", varName, strings.Trim(escaped, `"`))
 	}
-
-	// collect keys deterministic order
-	var keys []string
-	for k := range spec.Flags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var lines []string
-	for _, key := range keys {
-		fs := spec.Flags[key]
-		if fs == nil {
-			continue
-		}
-
-		// env name: prefer explicit, otherwise normalize flag key
-		varName := calcEnvName(fs, key, spec.EnvPrefix)
-
-		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
-		if err != nil {
-			return "", fmt.Errorf("flag %s: %w", key, err)
-		}
-
-		// buildCmdLiteral 保留原始换行并为 cmd 平台生成分段字面量
-		escaped := buildCmdLiteral(val)
-
-		if fs.Export {
-			// persistent for Windows cmd: use setx
-			// setx VAR "value"
-			lines = append(lines, fmt.Sprintf("setx %s \"%s\"", varName, escaped))
-		} else {
-			// session assignment: wrap assignment in set "VAR=value"
-			// remove outer quotes if any so set "VAR=value" remains valid
-			lines = append(lines, fmt.Sprintf("set \"%s=%s\"", varName, strings.Trim(escaped, `"`)))
-		}
-	}
-
-	return strings.Join(lines, "\r\n"), nil
 }
 
-func exportEnvVarLinuxLike(spec *CmdSpec) (string, error) {
-	if spec == nil || len(spec.Flags) == 0 {
-		return "", nil
+func exportEnvVarLinuxLike(varName string, val string, export bool) string {
+	// buildShellLiteral 保留原始换行并生成 POSIX shell 字面量片段
+	quoted := buildShellLiteral(val)
+
+	if export {
+		return fmt.Sprintf("export %s=%s", varName, quoted)
+	} else {
+		return fmt.Sprintf("%s=%s", varName, quoted)
 	}
-
-	var keys []string
-	for k := range spec.Flags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	var lines []string
-	for _, key := range keys {
-		fs := spec.Flags[key]
-		if fs == nil {
-			continue
-		}
-
-		varName := calcEnvName(fs, key, spec.EnvPrefix)
-
-		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
-		if err != nil {
-			return "", fmt.Errorf("flag %s: %w", key, err)
-		}
-
-		// buildShellLiteral 保留原始换行并生成 POSIX shell 字面量片段
-		quoted := buildShellLiteral(val)
-
-		if fs.Export {
-			lines = append(lines, fmt.Sprintf("export %s=%s", varName, quoted))
-		} else {
-			lines = append(lines, fmt.Sprintf("%s=%s", varName, quoted))
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
 }
 
-func exportEnvVarPowershellLike(spec *CmdSpec) (string, error) {
-	if spec == nil || len(spec.Flags) == 0 {
-		return "", nil
+func escapeForPS(s string) string {
+	if s == "" {
+		return "''"
 	}
-
-	var keys []string
-	for k := range spec.Flags {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	// for PowerShell use single-quoted literal strings; single quote inside is represented by doubling it.
-	escapeForPS := func(s string) string {
-		if s == "" {
-			return "''"
-		}
-		return "'" + strings.ReplaceAll(s, "'", "''") + "'"
-	}
-
-	var lines []string
-	for _, key := range keys {
-		fs := spec.Flags[key]
-		if fs == nil {
-			continue
-		}
-
-		varName := calcEnvName(fs, key, spec.EnvPrefix)
-
-		val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
-		if err != nil {
-			return "", fmt.Errorf("flag %s: %w", key, err)
-		}
-
-		// buildPowershellLiteral 返回一个可作为表达式的字符串（可能含 + 连接）
-		escaped := buildPowershellLiteral(val)
-
-		if fs.Export {
-			// persistent for current user
-			lines = append(lines, fmt.Sprintf("[System.Environment]::SetEnvironmentVariable(%s,%s,'User')", escapeForPS(varName), escaped))
-		} else {
-			// current session
-			// $Env:VAR = 'value'
-			// Note: env var name in PowerShell is case-insensitive, use as-is
-			lines = append(lines, fmt.Sprintf("$Env:%s = %s", varName, escaped))
-		}
-	}
-
-	return strings.Join(lines, "\n"), nil
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-func exportEnvVar(spec *CmdSpec) (string, error) {
-	switch spec.ShellType {
+func exportEnvVarPowershellLike(varName string, val string, export bool) string {
+	// buildPowershellLiteral 返回一个可作为表达式的字符串（可能含 + 连接）
+	escaped := buildPowershellLiteral(val)
+
+	if export {
+		// persistent for current user
+		return fmt.Sprintf("[System.Environment]::SetEnvironmentVariable(%s,%s,'User')", escapeForPS(varName), escaped)
+	} else {
+		// current session
+		// $Env:VAR = 'value'
+		// Note: env var name in PowerShell is case-insensitive, use as-is
+		return fmt.Sprintf("$Env:%s = %s", varName, escaped)
+	}
+}
+
+func exportEnvVar(shellType ShellType, varName string, val string, export bool) (string, error) {
+	switch shellType {
 	case ShellTypeSh:
-		return exportEnvVarLinuxLike(spec)
+		return exportEnvVarLinuxLike(varName, val, export), nil
 	case ShellTypePowershell:
-		return exportEnvVarPowershellLike(spec)
+		return exportEnvVarPowershellLike(varName, val, export), nil
 	case ShellTypeCmd:
-		return exportEnvVarCmdLike(spec)
+		return exportEnvVarCmdLike(varName, val, export), nil
+	default:
+		// should not reach here
+		return "", fmt.Errorf("unsupported shell type: %v", shellType)
+	}
+}
+
+func exportEnvVars(spec *CmdSpec) (string, error) {
+	if shellType, err := decideShellType(spec.ShellType); err != nil {
+		return "", err
+	} else {
+		if spec == nil || len(spec.Flags) == 0 {
+			return "", nil
+		}
+
+		// collect keys deterministic order
+		var keys []string
+		for k := range spec.Flags {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		var lines []string
+		for _, key := range keys {
+			fs := spec.Flags[key]
+			if fs == nil {
+				continue
+			}
+
+			// env name: prefer explicit, otherwise normalize flag key
+			varName := calcEnvName(key, fs.EnvName, spec.EnvPrefix)
+
+			val, err := OutputMultiValues(fs.MultiFormat, fs.Value)
+			if err != nil {
+				return "", fmt.Errorf("flag %s: %w", key, err)
+			}
+
+			if line, err := exportEnvVar(shellType, varName, val, fs.Export); err != nil {
+				return "", err
+			} else {
+				lines = append(lines, line)
+			}
+		}
+
+		return strings.Join(lines, "\n"), nil
+	}
+}
+
+func decideShellType(shellType ShellType) (ShellType, error) {
+	switch shellType {
+	case ShellTypeSh, ShellTypePowershell, ShellTypeCmd:
+		return shellType, nil
 	case ShellTypeAuto:
 		fallthrough
 	default:
 		// auto-detect
 		shellName, err := detectUserShell()
 		if err != nil {
-			// default to sh-like
-			return "", fmt.Errorf("cannot detect user shell: %w", err)
+			return ShellTypeAuto, fmt.Errorf("cannot detect user shell: %w", err)
 		}
-		lowerName := strings.ToLower(shellName)
-		if strings.Contains(lowerName, "powershell") || strings.Contains(lowerName, "pwsh") {
-			return exportEnvVarPowershellLike(spec)
-		} else if strings.Contains(lowerName, "cmd.exe") || strings.Contains(lowerName, "cmd") {
-			return exportEnvVarCmdLike(spec)
-		} else {
+		shellName = strings.ToLower(shellName)
+		shellName = strings.TrimSuffix(shellName, ".exe")
+		switch shellName {
+		case "powershell", "pwsh":
+			return ShellTypePowershell, nil
+		case "cmd":
+			return ShellTypeCmd, nil
+		default:
 			// default to sh-like
-			return exportEnvVarLinuxLike(spec)
+			return ShellTypeSh, nil
 		}
 	}
 }
