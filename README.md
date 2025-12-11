@@ -15,7 +15,7 @@ Installation
 install using go cmdline tool:
 
 ```bash
-go install github.com/vipcxj/argonaut
+go install github.com/vipcxj/argonaut@latest
 ```
 
 Usage overview
